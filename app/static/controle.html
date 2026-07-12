@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LouvorJA Lite — Controle</title>
+<link rel="stylesheet" href="/static/controle.css">
+</head>
+<body>
+<header>
+  <h1>LouvorJA Lite</h1>
+  <div class="semana">
+    <label for="semana">Semana</label>
+    <input type="date" id="semana">
+    <button id="abrir-projecao" type="button">Abrir Projeção</button>
+  </div>
+</header>
+
+<main>
+  <section class="busca">
+    <h2>Buscar hino</h2>
+    <div class="busca-controles">
+      <input type="text" id="busca-input" placeholder="Número ou nome do hino...">
+      <select id="busca-edicao">
+        <option value="atual">Hinário atual</option>
+        <option value="1996">Hinário 1996</option>
+        <option value="tudo">Tudo (CDs/coletâneas)</option>
+      </select>
+    </div>
+    <ul id="resultados"></ul>
+  </section>
+
+  <section class="liturgia">
+    <h2>Liturgia da semana</h2>
+    <ol id="itens-liturgia"></ol>
+    <p id="liturgia-vazia" class="vazio">Nenhum item ainda — busque um hino e clique em
+      "+ adicionar".</p>
+  </section>
+</main>
+
+<footer id="barra-projecao">
+  <span id="item-atual">Nenhum hino selecionado</span>
+  <div class="navegacao">
+    <button id="slide-anterior" type="button">◀ Anterior</button>
+    <span id="slide-contador">0/0</span>
+    <button id="slide-proximo" type="button">Próximo ▶</button>
+  </div>
+</footer>
+
+<script src="/static/controle.js"></script>
+</body>
+</html>

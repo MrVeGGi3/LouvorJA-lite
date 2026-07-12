@@ -1,0 +1,106 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #1b1d22;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #101216;
+  border-bottom: 1px solid #2a2d33;
+}
+
+header h1 { font-size: 1.1rem; margin: 0; }
+
+.semana { display: flex; align-items: center; gap: 0.5rem; }
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1rem 1.25rem 5.5rem;
+  overflow: auto;
+}
+
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; }
+}
+
+section {
+  background: #24272e;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+h2 { margin-top: 0; font-size: 1rem; color: #9fb4ff; }
+
+.busca-controles { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+
+input, select, button {
+  font: inherit;
+  border-radius: 6px;
+  border: 1px solid #3a3e47;
+  background: #1b1d22;
+  color: #eee;
+  padding: 0.4rem 0.6rem;
+}
+
+button {
+  cursor: pointer;
+  background: #3457d5;
+  border-color: #3457d5;
+}
+
+button:hover { background: #4468e8; }
+
+#busca-input { flex: 1; }
+
+#resultados, #itens-liturgia {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+#resultados li, #itens-liturgia li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid #2f333c;
+}
+
+#resultados li:hover { background: #2c303a; cursor: pointer; }
+
+.item-botoes { display: flex; gap: 0.25rem; }
+
+.item-botoes button { padding: 0.2rem 0.5rem; font-size: 0.85rem; }
+
+.vazio { color: #888; font-size: 0.9rem; }
+
+#barra-projecao {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #101216;
+  border-top: 1px solid #2a2d33;
+}
+
+.navegacao { display: flex; align-items: center; gap: 0.6rem; }
