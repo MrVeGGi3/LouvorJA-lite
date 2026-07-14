@@ -44,9 +44,12 @@ def test_slides_de_musica():
     resp = client.get("/api/musicas/1/slides")
     assert resp.status_code == 200
     slides = resp.json()
-    assert len(slides) == 2
-    assert slides[0]["imagem_fundo"] == "/api/imagem/910"
-    assert slides[1]["imagem_fundo"] == "/api/imagem/911"
+    # capa + 2 slides de letra
+    assert len(slides) == 3
+    assert slides[0]["tipo"] == "capa"
+    assert slides[0]["imagem_fundo"] == "/api/imagem/911"
+    assert slides[1]["imagem_fundo"] == "/api/imagem/910"
+    assert slides[2]["imagem_fundo"] == "/api/imagem/911"
 
 
 def test_detalhe_de_musica_inexistente():
@@ -92,7 +95,7 @@ def test_adicionar_item_e_projetar():
     }
     resp = client.post("/api/projecao/estado", json=estado)
     assert resp.status_code == 200
-    assert resp.json()["total_slides"] == 2
+    assert resp.json()["total_slides"] == 3
 
     resp = client.post("/api/projecao/navegar", json={"direcao": "prox"})
     assert resp.status_code == 200
@@ -101,8 +104,9 @@ def test_adicionar_item_e_projetar():
     resp = client.get("/api/projecao/estado")
     assert resp.json()["slide_index"] == 1
 
-    resp = client.post("/api/projecao/navegar", json={"direcao": "prox"})
-    assert resp.status_code == 400
+    # último slide (capa + 2 letras = 3)
+    assert client.post("/api/projecao/navegar", json={"direcao": "prox"}).json()["slide_index"] == 2
+    assert client.post("/api/projecao/navegar", json={"direcao": "prox"}).status_code == 400
 
 
 def test_reordenar_itens():

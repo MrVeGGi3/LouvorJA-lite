@@ -71,7 +71,8 @@ INSERT INTO musics (id_music, name, id_file_image, id_file_music, id_file_instru
     (2, 'Hino de Teste Dois', NULL, NULL, NULL, 'pt'),
     (3, 'Variante A', NULL, NULL, NULL, 'pt'),
     (4, 'Variante B', NULL, NULL, NULL, 'pt'),
-    (5, 'Canção da Coletânea', NULL, NULL, NULL, 'pt');
+    (5, 'Canção da Coletânea', NULL, NULL, NULL, 'pt'),
+    (6, 'Hino com Repetição', NULL, NULL, NULL, 'pt');
 
 INSERT INTO albums_musics (id_album_music, id_album, id_music, track, id_language) VALUES
     (1, 712, 1, 1, 'pt'),
@@ -87,7 +88,14 @@ INSERT INTO lyrics (id_lyric, id_music, lyric, aux_lyric, id_file_image, "time",
     (1, 1, 'Primeira estrofe do hino de teste', 'Verso auxiliar', 910, '00:00:09', '00:00:11', 1, 1, 'pt'),
     (2, 1, 'Segunda estrofe do hino de teste', NULL, NULL, '00:00:20', '00:00:24', 1, 2, 'pt'),
     (3, 1, 'Estrofe que não deve virar slide', NULL, NULL, '00:00:30', '00:00:30', 0, 3, 'pt'),
-    (4, 2, 'Estrofe única da música sem áudio', NULL, NULL, '00:00:00', '00:00:00', 1, 1, 'pt');
+    (4, 2, 'Estrofe única da música sem áudio', NULL, NULL, '00:00:00', '00:00:00', 1, 1, 'pt'),
+    -- Três slides idênticos em sequência: o 2º sai dourado e o 3º volta ao branco (o alternador
+    -- do original). O 4º é diferente e volta ao branco também.
+    (5, 6, 'Refrão repetido', NULL, NULL, '00:00:10', '00:00:10', 1, 1, 'pt'),
+    (6, 6, 'refrão repetido', NULL, NULL, '00:00:20', '00:00:20', 1, 2, 'pt'),
+    (7, 6, 'REFRÃO REPETIDO', NULL, NULL, '00:00:30', '00:00:30', 1, 3, 'pt'),
+    (8, 6, 'Estrofe diferente', NULL, NULL, '00:00:40', '00:00:40', 1, 4, 'pt'),
+    (9, 5, 'Estrofe da canção de coletânea', NULL, NULL, '00:00:05', '00:00:05', 1, 1, 'pt');
 """
 
 
@@ -104,6 +112,7 @@ def _fresh_data_dir(tmp_path, monkeypatch):
     import app.config as config
     import app.db.connection as connection
     import app.db.introspect as introspect
+    import app.fixos.store as fixos_store
     import app.liturgia.store as store
     import app.projecao.state as state
 
@@ -112,12 +121,15 @@ def _fresh_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "CAPAS_DIR", tmp_path / "capas")
     monkeypatch.setattr(config, "IMAGENS_DIR", tmp_path / "imagens")
     monkeypatch.setattr(config, "LITURGIAS_DIR", tmp_path / "liturgias")
+    monkeypatch.setattr(config, "FIXOS_PATH", tmp_path / "fixos.json")
     monkeypatch.setattr(config, "PROJECAO_STATE_PATH", tmp_path / "projecao_estado.json")
 
     monkeypatch.setattr(connection, "DB_PATH", tmp_path / "database.db")
     monkeypatch.setattr(introspect, "DB_PATH", tmp_path / "database.db")
     introspect._tables_for_mtime.cache_clear()
     monkeypatch.setattr(store, "LITURGIAS_DIR", tmp_path / "liturgias")
+    # O store importa o caminho direto, então patchar só o config não bastaria.
+    monkeypatch.setattr(fixos_store, "FIXOS_PATH", tmp_path / "fixos.json")
     monkeypatch.setattr(state, "PROJECAO_STATE_PATH", tmp_path / "projecao_estado.json")
 
     _build_fixture_db(tmp_path / "database.db")

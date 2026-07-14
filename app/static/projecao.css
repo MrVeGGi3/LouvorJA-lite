@@ -35,22 +35,17 @@ html, body {
   font-display: block;
 }
 
-/* Mesmo estilo do LouvorJA Desktop (fmMusica.lfm / fmMusica.pas:191): Arial Narrow negrito
-   branco, centralizada, e o tamanho da fonte é uma porcentagem da ALTURA da tela — 14% para a
-   letra e 10% para a auxiliar (os defaults de 'Tamanho Texto' em fmMenu.pas:9527). Escalar pela
-   altura é o que faz a letra crescer junto com o telão; qualquer teto em px ou rem a deixaria
-   pequena num projetor grande. */
-:root {
-  --tamanho-letra: 14vh;
-  --tamanho-letra-aux: 10vh;
-}
-
+/* Mesmo estilo do LouvorJA Desktop (fmMusica.dfm): Arial Narrow negrito, centralizada. Cor e
+   tamanho vêm de cada slide (o título é dourado e maior que a letra), e o tamanho é uma
+   porcentagem da ALTURA da tela — escalar pela altura é o que faz a letra crescer junto com o
+   telão; qualquer teto em px ou rem a deixaria pequena num projetor grande. */
 #letra,
 #letra-aux {
   /* A embutida primeiro; as do sistema ficam só como rede de segurança. */
   font-family: "LouvorJA Narrow", "Arial Narrow", "Liberation Sans Narrow",
                "DejaVu Sans Condensed", sans-serif;
   font-weight: bold;
+  text-transform: uppercase;
   text-align: center;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -62,13 +57,12 @@ html, body {
 }
 
 #letra {
-  font-size: var(--tamanho-letra);
+  font-size: 14vh; /* substituído por slide (tamanho_letra) */
   line-height: 1.15;
 }
 
 #letra-aux {
-  font-size: var(--tamanho-letra-aux);
+  font-size: 10vh; /* substituído por slide (tamanho_letra_aux) */
   line-height: 1.2;
   margin-top: 0.4em;
-  opacity: 0.85;
 }

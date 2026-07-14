@@ -48,6 +48,7 @@ CAPAS_DIR = DATA_DIR / "capas"
 IMAGENS_DIR = DATA_DIR / "imagens"
 MUSICAS_DIR = DATA_DIR / "musicas"
 LITURGIAS_DIR = DATA_DIR / "liturgias"
+FIXOS_PATH = DATA_DIR / "fixos.json"
 PROJECAO_STATE_PATH = DATA_DIR / "projecao_estado.json"
 
 DEFAULT_SOURCE_DIR = Path(

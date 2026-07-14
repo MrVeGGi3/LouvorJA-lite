@@ -7,6 +7,12 @@ const liturgiaVaziaEl = document.getElementById("liturgia-vazia");
 const itemAtualEl = document.getElementById("item-atual");
 const slideContadorEl = document.getElementById("slide-contador");
 
+const abaSemanaBt = document.getElementById("aba-semana");
+const abaFixosBt = document.getElementById("aba-fixos");
+const painelSemanaEl = document.getElementById("painel-semana");
+const painelFixosEl = document.getElementById("painel-fixos");
+const itensFixosEl = document.getElementById("itens-fixos");
+
 const playerEl = document.getElementById("player");
 const audioEl = document.getElementById("audio");
 const playBt = document.getElementById("player-play");
@@ -19,6 +25,9 @@ const seguirEl = document.getElementById("player-seguir");
 const avisoEl = document.getElementById("player-aviso");
 
 let liturgiaAtual = null;
+let fixosAtuais = null;
+let abaAtiva = "semana";
+let resultadosVisiveis = [];
 let buscaTimeout = null;
 
 // Estado do player: as faixas da música atual, os slides e a linha do tempo em segundos.
@@ -70,6 +79,7 @@ async function buscar() {
 }
 
 function renderResultados(lista) {
+  resultadosVisiveis = lista;
   resultadosEl.innerHTML = "";
   for (const item of lista) {
     const li = document.createElement("li");
@@ -82,7 +92,12 @@ function renderResultados(lista) {
 
     const btAdicionar = document.createElement("button");
     btAdicionar.textContent = "+ adicionar";
-    btAdicionar.addEventListener("click", () => adicionarItemLiturgia(item));
+    btAdicionar.title = abaAtiva === "fixos"
+      ? "Encaixar no primeiro momento sem hino"
+      : "Adicionar à liturgia da semana";
+    btAdicionar.addEventListener("click", () =>
+      abaAtiva === "fixos" ? encaixarEmFixo(item) : adicionarItemLiturgia(item),
+    );
     li.appendChild(btAdicionar);
 
     resultadosEl.appendChild(li);
@@ -200,6 +215,116 @@ async function projetarItem(item, itemIndex = null) {
   slideProjetado = 0;
   prepararPlayer(audio);
 }
+
+// ---------------------------------------------------------------- hinos fixos
+
+function trocarAba(qual) {
+  abaAtiva = qual;
+  abaSemanaBt.classList.toggle("ativa", qual === "semana");
+  abaFixosBt.classList.toggle("ativa", qual === "fixos");
+  painelSemanaEl.hidden = qual !== "semana";
+  painelFixosEl.hidden = qual !== "fixos";
+  // Redesenha os resultados: o "+ adicionar" passa a apontar para a outra aba.
+  renderResultados(resultadosVisiveis);
+}
+
+async function carregarFixos() {
+  fixosAtuais = await api("/api/fixos");
+  renderFixos();
+}
+
+async function salvarFixos() {
+  fixosAtuais = await api("/api/fixos", {
+    method: "PUT",
+    body: JSON.stringify(fixosAtuais),
+  });
+  renderFixos();
+}
+
+function renderFixos() {
+  itensFixosEl.innerHTML = "";
+  for (const item of fixosAtuais?.itens || []) {
+    const li = document.createElement("li");
+
+    const nome = document.createElement("input");
+    nome.className = "nome-fixo";
+    nome.value = item.nome;
+    nome.title = "Nome do momento do culto";
+    nome.addEventListener("change", () => {
+      item.nome = nome.value.trim() || "Sem nome";
+      salvarFixos();
+    });
+    li.appendChild(nome);
+
+    const hino = document.createElement("span");
+    hino.className = item.ref_id ? "hino-fixo" : "hino-fixo vazio";
+    hino.textContent = item.titulo_exibicao || "(sem hino)";
+    li.appendChild(hino);
+
+    const botoes = document.createElement("div");
+    botoes.className = "item-botoes";
+
+    if (item.ref_id) {
+      const btProjetar = document.createElement("button");
+      btProjetar.textContent = "▶";
+      btProjetar.title = "Projetar";
+      btProjetar.addEventListener("click", () =>
+        projetarItem({ ref_id: item.ref_id, titulo: item.titulo_exibicao }),
+      );
+      botoes.appendChild(btProjetar);
+
+      const btLimpar = document.createElement("button");
+      btLimpar.textContent = "⌫";
+      btLimpar.title = "Tirar o hino, mantendo o momento";
+      btLimpar.addEventListener("click", () => {
+        item.ref_id = null;
+        item.titulo_exibicao = null;
+        salvarFixos();
+      });
+      botoes.appendChild(btLimpar);
+    }
+
+    const btRemover = document.createElement("button");
+    btRemover.textContent = "✕";
+    btRemover.title = "Remover o momento";
+    btRemover.addEventListener("click", async () => {
+      fixosAtuais = await api(`/api/fixos/itens/${item.id}`, { method: "DELETE" });
+      renderFixos();
+    });
+    botoes.appendChild(btRemover);
+
+    li.appendChild(botoes);
+    itensFixosEl.appendChild(li);
+  }
+}
+
+// O hino vai para o primeiro momento ainda vazio — é o caso comum (a lista de momentos já
+// existe e só falta preencher). Se todos estiverem preenchidos, cria um momento novo.
+async function encaixarEmFixo(item) {
+  const vazio = (fixosAtuais?.itens || []).find((i) => !i.ref_id);
+  if (vazio) {
+    vazio.ref_id = item.ref_id;
+    vazio.titulo_exibicao = item.titulo;
+    await salvarFixos();
+    return;
+  }
+  fixosAtuais = await api("/api/fixos/itens", {
+    method: "POST",
+    body: JSON.stringify({ nome: "Novo momento", ref_id: item.ref_id, titulo_exibicao: item.titulo }),
+  });
+  renderFixos();
+}
+
+abaSemanaBt.addEventListener("click", () => trocarAba("semana"));
+abaFixosBt.addEventListener("click", () => trocarAba("fixos"));
+
+document.getElementById("novo-fixo").addEventListener("click", async () => {
+  fixosAtuais = await api("/api/fixos/itens", {
+    method: "POST",
+    body: JSON.stringify({ nome: "Novo momento" }),
+  });
+  renderFixos();
+});
 
 // ---------------------------------------------------------------- player de áudio
 
@@ -357,6 +482,7 @@ buscaEdicao.addEventListener("change", buscar);
 semanaInput.value = hojeISO();
 semanaInput.addEventListener("change", carregarLiturgia);
 carregarLiturgia();
+carregarFixos();
 
 document.addEventListener("keydown", (evento) => {
   if (evento.target.tagName === "INPUT" || evento.target.tagName === "SELECT") return;

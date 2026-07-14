@@ -12,10 +12,13 @@ function aplicarSlide(estado) {
 
   letraEl.textContent = slide.letra || "";
   letraEl.style.color = slide.cor_letra || "#ffffff";
+  // O tamanho vem em % da altura da tela (o título é maior que a letra), como no LouvorJA.
+  letraEl.style.fontSize = `${slide.tamanho_letra || 14}vh`;
 
   if (slide.letra_aux) {
     letraAuxEl.textContent = slide.letra_aux;
     letraAuxEl.style.color = slide.cor_letra_aux || slide.cor_letra || "#ffffff";
+    letraAuxEl.style.fontSize = `${slide.tamanho_letra_aux || 10}vh`;
     letraAuxEl.style.display = "block";
   } else {
     letraAuxEl.style.display = "none";

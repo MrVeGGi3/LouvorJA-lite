@@ -83,8 +83,8 @@ def test_musica_sem_audio_no_catalogo():
 
 def test_slide_traz_imagem_por_id():
     slides = client.get("/api/musicas/1/slides").json()
-    assert slides[0]["imagem_fundo"] == "/api/imagem/910"
-    assert slides[1]["imagem_fundo"] == "/api/imagem/911"
+    assert slides[1]["imagem_fundo"] == "/api/imagem/910"
+    assert slides[2]["imagem_fundo"] == "/api/imagem/911"
 
 
 def test_ir_para_slide_absoluto():

@@ -31,10 +31,23 @@
   </section>
 
   <section class="liturgia">
-    <h2>Liturgia da semana</h2>
-    <ol id="itens-liturgia"></ol>
-    <p id="liturgia-vazia" class="vazio">Nenhum item ainda — busque um hino e clique em
-      "+ adicionar".</p>
+    <div class="abas" role="tablist">
+      <button id="aba-semana" class="aba ativa" type="button" role="tab">Liturgia da semana</button>
+      <button id="aba-fixos" class="aba" type="button" role="tab">Hinos fixos</button>
+    </div>
+
+    <div id="painel-semana" class="painel">
+      <ol id="itens-liturgia"></ol>
+      <p id="liturgia-vazia" class="vazio">Nenhum item ainda — busque um hino e clique em
+        "+ adicionar".</p>
+    </div>
+
+    <div id="painel-fixos" class="painel" hidden>
+      <p class="ajuda">Os momentos que se repetem todo culto. Clique no nome para renomear;
+        busque um hino e use "+ adicionar" para encaixá-lo no momento vazio.</p>
+      <ol id="itens-fixos"></ol>
+      <button id="novo-fixo" type="button" class="secundario">+ novo momento</button>
+    </div>
   </section>
 </main>
 

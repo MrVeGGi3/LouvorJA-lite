@@ -11,7 +11,6 @@ router = APIRouter(prefix="/api/musicas", tags=["musicas"])
 
 def _slide_para_api(slide: dict) -> dict:
     out = dict(slide)
-    out.pop("imagem_arquivo", None)
     imagem_id = out.get("imagem_id")
     # Servir por id mantém nomes com acento e apóstrofo fora da URL.
     out["imagem_fundo"] = f"/api/imagem/{imagem_id}" if imagem_id else None

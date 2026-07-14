@@ -8,6 +8,7 @@ from app.config import PROJECAO_STATE_PATH
 
 
 class SlideAtual(BaseModel):
+    tipo: str = "letra"
     ordem: int = 0
     letra: str = ""
     letra_aux: Optional[str] = None
@@ -15,7 +16,9 @@ class SlideAtual(BaseModel):
     cor_fundo: str = "#000000"
     cor_letra: str = "#ffffff"
     cor_letra_aux: Optional[str] = None
-    fundo_letra: bool = False
+    # Em % da altura da tela, como no LouvorJA — o título é maior que a letra.
+    tamanho_letra: int = 14
+    tamanho_letra_aux: int = 10
 
 
 class EstadoProjecao(BaseModel):

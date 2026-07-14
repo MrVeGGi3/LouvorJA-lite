@@ -90,6 +90,94 @@ button:hover { background: #4468e8; }
 
 .vazio { color: #888; font-size: 0.9rem; }
 
+.abas {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.9rem;
+  border-bottom: 1px solid #2a2d33;
+}
+
+.aba {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0.5rem 0.9rem;
+  color: #8b93a1;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.aba:hover { color: #d5dae2; }
+
+.aba.ativa {
+  color: #fff;
+  border-bottom-color: #2f6fd0;
+}
+
+.painel[hidden] { display: none; }
+
+.ajuda {
+  margin: 0 0 0.8rem;
+  font-size: 0.82rem;
+  color: #8b93a1;
+  line-height: 1.4;
+}
+
+#itens-fixos {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+}
+
+#itens-fixos li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid #23262c;
+}
+
+.nome-fixo {
+  flex: 0 0 11rem;
+  background: #16181d;
+  border: 1px solid #2a2d33;
+  border-radius: 4px;
+  color: #eee;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.88rem;
+}
+
+.nome-fixo:focus {
+  outline: none;
+  border-color: #2f6fd0;
+}
+
+.hino-fixo {
+  flex: 1;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hino-fixo.vazio {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.secundario {
+  background: none;
+  border: 1px dashed #3a3f47;
+  color: #8b93a1;
+  font-size: 0.85rem;
+}
+
+.secundario:hover {
+  color: #d5dae2;
+  border-color: #4d545e;
+}
+
 #barra-projecao {
   position: fixed;
   bottom: 0;
