@@ -84,6 +84,10 @@ LOUVORJA_REAL_DB=~/.local/share/LouvorJA/config/database.db pytest tests/test_sc
   manualmente para a tela correta.
 - Liturgias antigas (`liturgia.ja` do LouvorJA Desktop) não são migradas — o formato aqui é novo
   (JSON), começando do zero.
-- O banco não guarda mais cor nem tamanho de letra: a projeção usa branco sobre preto e uma fonte
-  que escala com a largura do telão.
+- O banco não guarda mais cor nem tamanho de letra. A projeção reproduz o estilo do LouvorJA
+  Desktop: Arial Narrow negrito branca, centralizada, com o tamanho da fonte em 14% da altura da
+  tela (10% para a letra auxiliar) — os mesmos defaults do original. Para mudar, ajuste
+  `--tamanho-letra` em `app/static/projecao.css`. A fonte vai embutida em `app/static/fontes/`
+  (Liberation Sans Narrow, clone métrico da Arial Narrow), para o pacote projetar igual num PC
+  que não a tenha instalada.
 - O catálogo em espanhol existe no banco, mas não é baixado nem exibido.
