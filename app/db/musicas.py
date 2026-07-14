@@ -1,26 +1,29 @@
 import sqlite3
 
-from app.db.introspect import has_table
 from app.db.text_utils import normaliza_semac
 
-TIPOS_PADRAO = ("HASD", "JA", "CD")
+_SELECT = """
+    SELECT m.id_music, m.name AS titulo, am.track AS numero,
+           a.id_album, a.name AS album,
+           m.id_file_music, m.id_file_instrumental_music
+    FROM musics m
+    LEFT JOIN albums_musics am ON am.id_music = m.id_music
+    LEFT JOIN albums a ON a.id_album = am.id_album
+"""
 
 
-def buscar_musicas(
-    conn: sqlite3.Connection, valor: str, tipos: tuple[str, ...] = TIPOS_PADRAO
-) -> list[sqlite3.Row]:
-    if not has_table("LISTA_MUSICAS_TODAS"):
+def buscar_musicas(conn: sqlite3.Connection, valor: str) -> list[sqlite3.Row]:
+    valor = (valor or "").strip()
+    if not valor:
         return []
     like = f"%{normaliza_semac(valor)}%"
-    tipos_csv = ",".join(tipos)
-    sql = """
-        SELECT * FROM LISTA_MUSICAS_TODAS
-        WHERE (',' || ? || ',') LIKE ('%,' || TIPO || ',%')
-          AND (NOME_SEMAC LIKE ? OR NOME_ALBUM_COM_SEMAC LIKE ?)
-        ORDER BY NOME
+    sql = _SELECT + """
+        WHERE semac(m.name) LIKE ? OR semac(COALESCE(a.name, '')) LIKE ?
+        GROUP BY m.id_music
+        ORDER BY m.name
     """
-    return conn.execute(sql, (tipos_csv, like, like)).fetchall()
+    return conn.execute(sql, (like, like)).fetchall()
 
 
-def obter_musica(conn: sqlite3.Connection, musica_id: int) -> sqlite3.Row | None:
-    return conn.execute("SELECT * FROM MUSICAS WHERE ID = ?", (musica_id,)).fetchone()
+def obter_musica(conn: sqlite3.Connection, id_music: int) -> sqlite3.Row | None:
+    return conn.execute(_SELECT + " WHERE m.id_music = ? LIMIT 1", (id_music,)).fetchone()

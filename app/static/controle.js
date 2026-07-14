@@ -7,8 +7,26 @@ const liturgiaVaziaEl = document.getElementById("liturgia-vazia");
 const itemAtualEl = document.getElementById("item-atual");
 const slideContadorEl = document.getElementById("slide-contador");
 
+const playerEl = document.getElementById("player");
+const audioEl = document.getElementById("audio");
+const playBt = document.getElementById("player-play");
+const faixaCantadoBt = document.getElementById("faixa-cantado");
+const faixaPlaybackBt = document.getElementById("faixa-playback");
+const progressoEl = document.getElementById("player-progresso");
+const tempoEl = document.getElementById("player-tempo");
+const volumeEl = document.getElementById("player-volume");
+const seguirEl = document.getElementById("player-seguir");
+const avisoEl = document.getElementById("player-aviso");
+
 let liturgiaAtual = null;
 let buscaTimeout = null;
+
+// Estado do player: as faixas da música atual, os slides e a linha do tempo em segundos.
+let faixas = { cantado: null, playback: null };
+let faixaAtual = "cantado";
+let slidesAtuais = [];
+let linhaDoTempo = [];
+let slideProjetado = -1;
 
 function hojeISO() {
   return new Date().toISOString().slice(0, 10);
@@ -34,18 +52,18 @@ async function buscar() {
   const edicao = buscaEdicao.value;
   let resultados;
   if (edicao === "tudo") {
-    resultados = await api(`/api/musicas/busca?q=${encodeURIComponent(q)}`);
-    resultados = resultados.map((m) => ({
-      origem: "MUSICAS",
-      ref_id: m.ID,
-      titulo: m.NOME,
+    const musicas = await api(`/api/musicas/busca?q=${encodeURIComponent(q)}`);
+    resultados = musicas.map((m) => ({
+      origem: "musicas",
+      ref_id: m.id_music,
+      titulo: m.album ? `${m.titulo} — ${m.album}` : m.titulo,
     }));
   } else {
-    resultados = await api(`/api/hinario?q=${encodeURIComponent(q)}&edicao=${edicao}`);
-    resultados = resultados.map((h) => ({
-      origem: edicao === "1996" ? "HINARIO_ADVENTISTA_1996" : "HINARIO_ADVENTISTA",
-      ref_id: h.ID,
-      titulo: `${h.FAIXA} - ${h.NOME_COM || h.NOME}`,
+    const hinos = await api(`/api/hinario?q=${encodeURIComponent(q)}&edicao=${edicao}`);
+    resultados = hinos.map((h) => ({
+      origem: edicao === "1996" ? "hinario_1996" : "hinario",
+      ref_id: h.id_music,
+      titulo: `${h.numero} - ${h.titulo}`,
     }));
   }
   renderResultados(resultados);
@@ -159,7 +177,11 @@ async function moverItem(de, para) {
 }
 
 async function projetarItem(item, itemIndex = null) {
-  const slides = await api(`/api/musicas/${item.origem}/${item.ref_id}/slides`);
+  const [slides, audio] = await Promise.all([
+    api(`/api/musicas/${item.ref_id}/slides`),
+    api(`/api/musicas/${item.ref_id}/audio`).catch(() => ({ cantado: null, playback: null })),
+  ]);
+
   const estado = await api("/api/projecao/estado", {
     method: "POST",
     body: JSON.stringify({
@@ -173,7 +195,133 @@ async function projetarItem(item, itemIndex = null) {
   });
   itemAtualEl.textContent = estado.titulo_item || "Sem título";
   atualizarContador(estado);
+
+  slidesAtuais = slides;
+  slideProjetado = 0;
+  prepararPlayer(audio);
 }
+
+// ---------------------------------------------------------------- player de áudio
+
+function tempoParaSegundos(hhmmss) {
+  if (!hhmmss) return 0;
+  const [h, m, s] = hhmmss.split(":").map(Number);
+  return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
+}
+
+function formatarSegundos(total) {
+  if (!Number.isFinite(total)) return "0:00";
+  const m = Math.floor(total / 60);
+  const s = Math.floor(total % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// A escolha da linha do tempo é por música, não por slide: misturar `tempo_instrumental` zerado
+// com valores reais produziria uma linha do tempo que anda para trás.
+function montarLinhaDoTempo(faixa) {
+  const usaInstrumental =
+    faixa === "playback" &&
+    slidesAtuais.some((s) => tempoParaSegundos(s.tempo_instrumental) > 0);
+
+  return slidesAtuais.map((s) =>
+    tempoParaSegundos(usaInstrumental ? s.tempo_instrumental : s.tempo),
+  );
+}
+
+function prepararPlayer(audio) {
+  faixas = audio || { cantado: null, playback: null };
+
+  const disponivel = (f) => Boolean(f && f.disponivel);
+  faixaPlaybackBt.disabled = !disponivel(faixas.playback);
+  faixaCantadoBt.disabled = !disponivel(faixas.cantado);
+
+  if (!disponivel(faixas.cantado) && !disponivel(faixas.playback)) {
+    playerEl.hidden = true;
+    audioEl.pause();
+    audioEl.removeAttribute("src");
+    return;
+  }
+
+  playerEl.hidden = false;
+  faixaAtual = disponivel(faixas.cantado) ? "cantado" : "playback";
+  trocarFaixa(faixaAtual, { autoplay: false });
+
+  const semPlayback = faixas.playback && !faixas.playback.disponivel;
+  avisoEl.hidden = !semPlayback;
+  if (semPlayback) avisoEl.textContent = "playback não baixado";
+}
+
+function trocarFaixa(qual, { autoplay = true } = {}) {
+  const faixa = faixas[qual];
+  if (!faixa || !faixa.disponivel) return;
+
+  faixaAtual = qual;
+  faixaCantadoBt.classList.toggle("ativa", qual === "cantado");
+  faixaPlaybackBt.classList.toggle("ativa", qual === "playback");
+
+  // Cantado e playback têm tempos diferentes — a linha do tempo é remontada junto com a faixa.
+  linhaDoTempo = montarLinhaDoTempo(qual);
+
+  audioEl.src = faixa.url;
+  audioEl.load();
+  if (autoplay) audioEl.play().catch(() => {});
+}
+
+function indiceDoSlideEm(segundos) {
+  let indice = 0;
+  for (let i = 0; i < linhaDoTempo.length; i++) {
+    if (linhaDoTempo[i] <= segundos) indice = i;
+    else break;
+  }
+  return indice;
+}
+
+async function irParaSlide(indice) {
+  if (indice === slideProjetado) return;
+  slideProjetado = indice;
+  try {
+    const estado = await api("/api/projecao/slide", {
+      method: "POST",
+      body: JSON.stringify({ slide_index: indice }),
+    });
+    atualizarContador(estado);
+  } catch (erro) {
+    console.warn(erro.message);
+  }
+}
+
+audioEl.addEventListener("loadedmetadata", () => {
+  progressoEl.max = audioEl.duration || 0;
+  tempoEl.textContent = `0:00 / ${formatarSegundos(audioEl.duration)}`;
+});
+
+audioEl.addEventListener("timeupdate", () => {
+  progressoEl.value = audioEl.currentTime;
+  tempoEl.textContent =
+    `${formatarSegundos(audioEl.currentTime)} / ${formatarSegundos(audioEl.duration)}`;
+
+  if (seguirEl.checked && linhaDoTempo.length) {
+    irParaSlide(indiceDoSlideEm(audioEl.currentTime));
+  }
+});
+
+audioEl.addEventListener("play", () => (playBt.textContent = "⏸"));
+audioEl.addEventListener("pause", () => (playBt.textContent = "▶"));
+
+playBt.addEventListener("click", () => {
+  if (audioEl.paused) audioEl.play().catch(() => {});
+  else audioEl.pause();
+});
+
+// Arrastar a barra reposiciona o slide pelo mesmo caminho do auto-advance.
+progressoEl.addEventListener("input", () => {
+  audioEl.currentTime = Number(progressoEl.value);
+});
+
+volumeEl.addEventListener("input", () => (audioEl.volume = Number(volumeEl.value)));
+
+faixaCantadoBt.addEventListener("click", () => trocarFaixa("cantado"));
+faixaPlaybackBt.addEventListener("click", () => trocarFaixa("playback"));
 
 function atualizarContador(estado) {
   slideContadorEl.textContent = `${estado.total_slides ? estado.slide_index + 1 : 0}/${estado.total_slides}`;
@@ -185,6 +333,8 @@ async function navegarSlide(direcao) {
       method: "POST",
       body: JSON.stringify({ direcao }),
     });
+    // Sem isto, o próximo timeupdate acharia que o slide "mudou" e puxaria a projeção de volta.
+    slideProjetado = estado.slide_index;
     atualizarContador(estado);
   } catch (erro) {
     console.warn(erro.message);
@@ -215,5 +365,8 @@ document.addEventListener("keydown", (evento) => {
     navegarSlide("prox");
   } else if (evento.key === "ArrowLeft") {
     navegarSlide("ant");
+  } else if (evento.key === "p" || evento.key === "P") {
+    evento.preventDefault();
+    playBt.click();
   }
 });

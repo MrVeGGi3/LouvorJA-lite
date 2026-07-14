@@ -15,7 +15,6 @@ class SlideAtual(BaseModel):
     cor_fundo: str = "#000000"
     cor_letra: str = "#ffffff"
     cor_letra_aux: Optional[str] = None
-    tamanho_letra: int = 40
     fundo_letra: bool = False
 
 

@@ -1,26 +1,35 @@
 # LouvorJA Lite
 
-Versão simplificada do [LouvorJA Desktop](https://github.com/louvorja/desktop) — busca de
-hinos, montagem de liturgia semanal e um modo de exibição em tela cheia para projeção. Sem
-player de áudio, sem sincronização com o servidor oficial, sem as demais telas do app
-original. Web app local (FastAPI + HTML/JS vanilla), sem build step e sem dependências de CDN.
+Versão simplificada do [LouvorJA Desktop](https://github.com/louvorja/desktop) — busca de hinos,
+montagem de liturgia semanal, player de áudio (cantado e playback) e um modo de exibição em tela
+cheia para projeção, com a virada de slide sincronizada com a música. Web app local
+(FastAPI + HTML/JS vanilla), sem build step e sem dependências de CDN.
+
+Distribuível como um **AppImage** que roda direto do pendrive, com todas as músicas junto — sem
+precisar de internet na igreja.
 
 ## Origem dos dados
 
-Este projeto **não baixa dados de nenhum servidor** — ele lê o `database.db` (SQLite) e as
-imagens (`capas/`, `imagens/`) já baixados por uma instalação existente do LouvorJA Desktop,
-normalmente em `~/.local/share/LouvorJA/config/`.
+O banco de hinos (`database.db`) vem de uma instalação existente do LouvorJA Desktop, normalmente
+em `~/.local/share/LouvorJA/config/`:
 
 ```bash
 python scripts/sync_data.py                     # usa o caminho padrão acima
 python scripts/sync_data.py --source /outro/caminho/config
 ```
 
-O comando é idempotente — pode ser reexecutado a qualquer momento para atualizar `data/`
-(banco + imagens) sem afetar as liturgias já criadas em `data/liturgias/`. Por padrão só copia
-imagens efetivamente referenciadas pelo banco (`--images referenced`); use `--images full` para
-copiar as pastas inteiras, `--images symlink` para não duplicar espaço em disco (mesma
-máquina), ou `--images none` para pular imagens.
+Os áudios e imagens são baixados do servidor oficial do LouvorJA — o mesmo que o app original usa:
+
+```bash
+python scripts/download_media.py --dry-run      # quanto pesa (4.756 arquivos, ~15 GB)
+python scripts/download_media.py --album 712    # só o Hinário Adventista
+python scripts/download_media.py                # o catálogo inteiro
+```
+
+O download é idempotente e retomável: se cair no meio, é só rodar de novo — ele continua de onde
+parou, inclusive no meio de um arquivo. O layout em disco (`data/musicas/<Álbum>/<Nome>.mp3`)
+espelha o do LouvorJA Desktop, então também dá para semear a pasta `data/` copiando de outra
+máquina em vez de baixar tudo.
 
 ## Rodando
 
@@ -33,23 +42,48 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 Abra `http://127.0.0.1:8000/controle` na tela do operador. Ao selecionar um hino e clicar em
 "Abrir Projeção", uma nova janela abre em `http://127.0.0.1:8000/projecao` — arraste para o
-segundo monitor/telão e pressione F11 para tela cheia.
+segundo monitor/telão e pressione F11.
+
+Atalhos: `→`/espaço próximo slide, `←` anterior, `P` toca/pausa.
+
+### Player e sincronia
+
+O áudio toca na janela de **controle** (a de projeção nunca recebe um gesto do usuário, e o
+navegador bloquearia o autoplay lá). Com "Seguir áudio" ligado, o slide vira sozinho no tempo
+gravado no banco (`lyrics.time` para o cantado, `instrumental_time` para o playback) — arrastar a
+barra de progresso reposiciona a projeção junto. Desligue a opção para navegar na mão.
+
+Músicas sem áudio baixado continuam projetando normalmente; só o player fica escondido.
+
+## Gerando o executável
+
+```bash
+./scripts/build_appimage.sh                # dist/LouvorJA-Lite-x86_64.AppImage (~21 MB)
+python scripts/build_pacote.py --baixar    # AppImage + data/ prontos para o pendrive
+```
+
+O AppImage **não** contém as músicas — os ~15 GB ficam na pasta `data/` ao lado dele. O app
+procura os dados nesta ordem:
+
+1. `LOUVORJA_LITE_DATA_DIR`, se definida;
+2. `data/` ao lado do `.AppImage` (o caso do pendrive);
+3. `~/.local/share/louvorja-lite`.
 
 ## Testes
 
 ```bash
 pytest
+
+# confere as queries contra um banco real, não contra a fixture:
+LOUVORJA_REAL_DB=~/.local/share/LouvorJA/config/database.db pytest tests/test_schema_contract.py
 ```
 
-## Limitações conhecidas (aceitas no MVP)
+## Limitações conhecidas
 
-- Tamanho de letra é aplicado em `pt` diretamente do valor gravado no banco — não se
-  auto-ajusta à resolução do telão.
 - Nenhuma detecção automática de monitor — a janela de projeção precisa ser arrastada
   manualmente para a tela correta.
-- Liturgias antigas (`liturgia.ja` do LouvorJA Desktop) não são migradas — o formato de
-  liturgia aqui é novo (JSON), começando do zero.
-- O vínculo entre um hino do hinário (`HINARIO_ADVENTISTA`) e sua letra/slides
-  (`MUSICAS_SLIDE`/`MUSICAS_LETRA`) é resolvido por nome (`NOME_COM`), já que os espaços de ID
-  dessas tabelas não coincidem. Vale revalidar essa heurística contra um banco real na primeira
-  sincronização.
+- Liturgias antigas (`liturgia.ja` do LouvorJA Desktop) não são migradas — o formato aqui é novo
+  (JSON), começando do zero.
+- O banco não guarda mais cor nem tamanho de letra: a projeção usa branco sobre preto e uma fonte
+  que escala com a largura do telão.
+- O catálogo em espanhol existe no banco, mas não é baixado nem exibido.

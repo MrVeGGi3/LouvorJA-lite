@@ -96,11 +96,92 @@ button:hover { background: #4468e8; }
   left: 0;
   right: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.6rem;
   padding: 0.75rem 1.25rem;
   background: #101216;
   border-top: 1px solid #2a2d33;
 }
 
+.linha-superior {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .navegacao { display: flex; align-items: center; gap: 0.6rem; }
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #2a2d33;
+}
+
+.player[hidden] { display: none; }
+
+.player .play {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.faixas { display: flex; flex-shrink: 0; }
+
+.faixas .faixa {
+  border-radius: 0;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+}
+
+.faixas .faixa:first-child { border-radius: 4px 0 0 4px; }
+.faixas .faixa:last-child { border-radius: 0 4px 4px 0; }
+
+.faixas .faixa.ativa {
+  background: #2f6fd0;
+  color: #fff;
+}
+
+.faixas .faixa:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#player-progresso { flex: 1; min-width: 8rem; }
+
+.player .tempo {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: #aab;
+  flex-shrink: 0;
+}
+
+.player .volume {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.player .volume input { width: 6rem; }
+
+.player .seguir {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #aab;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.player .aviso {
+  font-size: 0.78rem;
+  color: #d8a23c;
+  white-space: nowrap;
+}
+
+.player .aviso[hidden] { display: none; }
