@@ -40,6 +40,9 @@ section {
   background: #24272e;
   border-radius: 8px;
   padding: 1rem;
+  /* Item de grid tem `min-width: auto`: sem isto a coluna cresce além da faixa de 1fr para
+     caber um conteúdo largo (um link de vídeo, um título de hino comprido) e escapa da tela. */
+  min-width: 0;
 }
 
 h2 { margin-top: 0; font-size: 1rem; color: #9fb4ff; }
@@ -134,8 +137,18 @@ button:hover { background: #4468e8; }
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.45rem 0;
+  padding: 0.45rem 0.55rem;
   border-bottom: 1px solid #23262c;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#itens-fixos li:hover { background: #16181d; }
+
+/* O momento mirado: é nele que o "+" da busca encaixa o próximo hino. */
+#itens-fixos li.alvo {
+  background: #172335;
+  box-shadow: inset 3px 0 0 #2f6fd0;
 }
 
 .nome-fixo {
@@ -155,6 +168,9 @@ button:hover { background: #4468e8; }
 
 .hino-fixo {
   flex: 1;
+  /* Sem isto o item flex não encolhe abaixo do próprio conteúdo, e um link de vídeo comprido
+     estoura a linha, empurrando os botões para fora do painel em vez de virar reticências. */
+  min-width: 0;
   font-size: 0.92rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -165,6 +181,14 @@ button:hover { background: #4468e8; }
   color: #6b7280;
   font-style: italic;
 }
+
+/* O vídeo mora no lugar do hino, mas se abre como link — daí o azul e o sublinhado no hover. */
+.hino-fixo.video {
+  color: #7aa7e6;
+  cursor: pointer;
+}
+
+.hino-fixo.video:hover { text-decoration: underline; }
 
 .secundario {
   background: none;

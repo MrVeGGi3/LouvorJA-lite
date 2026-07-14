@@ -26,6 +26,7 @@ const avisoEl = document.getElementById("player-aviso");
 
 let liturgiaAtual = null;
 let fixosAtuais = null;
+let fixoDestinoId = null;
 let abaAtiva = "semana";
 let resultadosVisiveis = [];
 let buscaTimeout = null;
@@ -81,6 +82,11 @@ async function buscar() {
 function renderResultados(lista) {
   resultadosVisiveis = lista;
   resultadosEl.innerHTML = "";
+
+  // Com a aba de fixos aberta o botão diz em qual momento o hino vai cair, porque o destino
+  // muda conforme a lista se enche e conforme o momento que estiver marcado.
+  const destino = abaAtiva === "fixos" ? destinoFixo() : null;
+
   for (const item of lista) {
     const li = document.createElement("li");
 
@@ -91,10 +97,18 @@ function renderResultados(lista) {
     li.appendChild(texto);
 
     const btAdicionar = document.createElement("button");
-    btAdicionar.textContent = "+ adicionar";
-    btAdicionar.title = abaAtiva === "fixos"
-      ? "Encaixar no primeiro momento sem hino"
-      : "Adicionar à liturgia da semana";
+    if (abaAtiva !== "fixos") {
+      btAdicionar.textContent = "+ adicionar";
+      btAdicionar.title = "Adicionar à liturgia da semana";
+    } else if (destino) {
+      btAdicionar.textContent = `+ em ${destino.nome}`;
+      btAdicionar.title = vazio(destino)
+        ? `Colocar este hino em "${destino.nome}"`
+        : `Trocar o que está em "${destino.nome}" por este hino`;
+    } else {
+      btAdicionar.textContent = "+ novo momento";
+      btAdicionar.title = "Todos os momentos já estão preenchidos — este vira um momento novo";
+    }
     btAdicionar.addEventListener("click", () =>
       abaAtiva === "fixos" ? encaixarEmFixo(item) : adicionarItemLiturgia(item),
     );
@@ -241,10 +255,91 @@ async function salvarFixos() {
   renderFixos();
 }
 
+function vazio(item) {
+  return !item.ref_id && !item.url_video;
+}
+
+// Quem recebe o próximo hino da busca: o momento que o usuário marcou ou, enquanto ele não
+// marcar nenhum, o primeiro ainda sem nada. Marcar é uma mira de um tiro só (`encaixarEmFixo`
+// desmarca depois de encaixar), então preencher a lista de cima para baixo continua sendo só
+// clicar em "+" várias vezes.
+function destinoFixo() {
+  const itens = fixosAtuais?.itens || [];
+  return itens.find((i) => i.id === fixoDestinoId) || itens.find(vazio) || null;
+}
+
+function mirarFixo(item) {
+  fixoDestinoId = item.id;
+  renderFixos();
+}
+
+// O momento sem hino não tinha por onde começar: só clicando na linha, o que ninguém adivinha.
+// O botão faz os dois passos de uma vez — mira o momento e põe o cursor na busca, de onde o
+// hino sai pelo "+ em <momento>".
+function escolherHinoPara(item) {
+  mirarFixo(item);
+  buscaInput.focus();
+  buscaInput.select();
+}
+
+// Hino e vídeo dividem o mesmo espaço no momento, então esvaziar é sempre esvaziar os dois.
+function botaoLimpar(item, titulo) {
+  const bt = document.createElement("button");
+  bt.textContent = "⌫";
+  bt.title = titulo;
+  bt.addEventListener("click", () => {
+    item.origem = null;
+    item.ref_id = null;
+    item.titulo_exibicao = null;
+    item.url_video = null;
+    salvarFixos();
+  });
+  return bt;
+}
+
+// O louvor que não está no banco — vem do YouTube. Fica guardado como link e abre numa aba;
+// a projeção continua sendo só dos hinos do banco.
+async function definirVideo(item) {
+  const resposta = prompt("Cole o link do vídeo (YouTube):", item.url_video || "");
+  if (resposta === null) return;
+
+  const url = resposta.trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) {
+    alert("O link precisa começar com http:// ou https://");
+    return;
+  }
+
+  // Pôr um vídeo tira o hino: o momento toca um ou outro, nunca os dois.
+  item.origem = null;
+  item.ref_id = null;
+  item.titulo_exibicao = null;
+  item.url_video = url;
+  await salvarFixos();
+}
+
+function abrirVideo(item) {
+  window.open(item.url_video, "_blank", "noopener");
+}
+
+// O espaço da linha é curto: o "https://www." não identifica vídeo nenhum, então some (a URL
+// inteira fica no tooltip) e o que sobra da largura vai para a parte que distingue um link do
+// outro.
+function rotuloVideo(url) {
+  return url.replace(/^https?:\/\/(www\.)?/i, "");
+}
+
 function renderFixos() {
+  const destino = destinoFixo();
   itensFixosEl.innerHTML = "";
+
   for (const item of fixosAtuais?.itens || []) {
     const li = document.createElement("li");
+    li.classList.toggle("alvo", destino?.id === item.id);
+    li.title = "Clique para o próximo hino da busca cair aqui";
+    li.addEventListener("click", (evento) => {
+      if (!evento.target.closest("button, input")) mirarFixo(item);
+    });
 
     const nome = document.createElement("input");
     nome.className = "nome-fixo";
@@ -257,8 +352,18 @@ function renderFixos() {
     li.appendChild(nome);
 
     const hino = document.createElement("span");
-    hino.className = item.ref_id ? "hino-fixo" : "hino-fixo vazio";
-    hino.textContent = item.titulo_exibicao || "(sem hino)";
+    hino.className = "hino-fixo";
+    if (item.ref_id) {
+      hino.textContent = item.titulo_exibicao;
+    } else if (item.url_video) {
+      hino.classList.add("video");
+      hino.textContent = `🎬 ${rotuloVideo(item.url_video)}`;
+      hino.title = `Abrir numa aba nova: ${item.url_video}`;
+      hino.addEventListener("click", () => abrirVideo(item));
+    } else {
+      hino.classList.add("vazio");
+      hino.textContent = "(sem hino)";
+    }
     li.appendChild(hino);
 
     const botoes = document.createElement("div");
@@ -273,15 +378,39 @@ function renderFixos() {
       );
       botoes.appendChild(btProjetar);
 
-      const btLimpar = document.createElement("button");
-      btLimpar.textContent = "⌫";
-      btLimpar.title = "Tirar o hino, mantendo o momento";
-      btLimpar.addEventListener("click", () => {
-        item.ref_id = null;
-        item.titulo_exibicao = null;
-        salvarFixos();
-      });
-      botoes.appendChild(btLimpar);
+      const btLiturgia = document.createElement("button");
+      btLiturgia.textContent = "→";
+      btLiturgia.title = "Copiar este hino para a liturgia da semana";
+      btLiturgia.addEventListener("click", () => enviarParaLiturgia(item, btLiturgia));
+      botoes.appendChild(btLiturgia);
+
+      botoes.appendChild(botaoLimpar(item, "Tirar o hino, mantendo o momento"));
+    } else if (item.url_video) {
+      const btAbrir = document.createElement("button");
+      btAbrir.textContent = "🎬";
+      btAbrir.title = "Abrir o vídeo numa aba nova";
+      btAbrir.addEventListener("click", () => abrirVideo(item));
+      botoes.appendChild(btAbrir);
+
+      const btTrocar = document.createElement("button");
+      btTrocar.textContent = "✎";
+      btTrocar.title = "Trocar o link do vídeo";
+      btTrocar.addEventListener("click", () => definirVideo(item));
+      botoes.appendChild(btTrocar);
+
+      botoes.appendChild(botaoLimpar(item, "Tirar o vídeo, mantendo o momento"));
+    } else {
+      const btEscolher = document.createElement("button");
+      btEscolher.textContent = "+ hino";
+      btEscolher.title = "Escolher um hino para este momento";
+      btEscolher.addEventListener("click", () => escolherHinoPara(item));
+      botoes.appendChild(btEscolher);
+
+      const btVideo = document.createElement("button");
+      btVideo.textContent = "+ vídeo";
+      btVideo.title = "Colar o link de um vídeo (YouTube) para este momento";
+      btVideo.addEventListener("click", () => definirVideo(item));
+      botoes.appendChild(btVideo);
     }
 
     const btRemover = document.createElement("button");
@@ -296,23 +425,45 @@ function renderFixos() {
     li.appendChild(botoes);
     itensFixosEl.appendChild(li);
   }
+
+  // O rótulo do "+" na busca nomeia o momento de destino, que acabou de mudar.
+  if (abaAtiva === "fixos") renderResultados(resultadosVisiveis);
 }
 
-// O hino vai para o primeiro momento ainda vazio — é o caso comum (a lista de momentos já
-// existe e só falta preencher). Se todos estiverem preenchidos, cria um momento novo.
 async function encaixarEmFixo(item) {
-  const vazio = (fixosAtuais?.itens || []).find((i) => !i.ref_id);
-  if (vazio) {
-    vazio.ref_id = item.ref_id;
-    vazio.titulo_exibicao = item.titulo;
-    await salvarFixos();
+  const destino = destinoFixo();
+  if (!destino) {
+    // Todos os momentos já estão preenchidos e nenhum está marcado: o hino vira um momento novo.
+    fixosAtuais = await api("/api/fixos/itens", {
+      method: "POST",
+      body: JSON.stringify({
+        nome: "Novo momento",
+        origem: item.origem,
+        ref_id: item.ref_id,
+        titulo_exibicao: item.titulo,
+      }),
+    });
+    renderFixos();
     return;
   }
-  fixosAtuais = await api("/api/fixos/itens", {
-    method: "POST",
-    body: JSON.stringify({ nome: "Novo momento", ref_id: item.ref_id, titulo_exibicao: item.titulo }),
+  destino.origem = item.origem;
+  destino.ref_id = item.ref_id;
+  destino.titulo_exibicao = item.titulo;
+  destino.url_video = null; // o hino toma o lugar do vídeo, se havia um
+  fixoDestinoId = null;
+  await salvarFixos();
+}
+
+// O momento fixo é copiado, não movido: ele continua na aba de fixos para o culto que vem, e
+// na semana vira um item comum, que dá para reordenar e remover como qualquer outro.
+async function enviarParaLiturgia(item, botao) {
+  await adicionarItemLiturgia({
+    origem: item.origem,
+    ref_id: item.ref_id,
+    titulo: item.titulo_exibicao,
   });
-  renderFixos();
+  botao.textContent = "✓";
+  setTimeout(() => (botao.textContent = "→"), 1500);
 }
 
 abaSemanaBt.addEventListener("click", () => trocarAba("semana"));
