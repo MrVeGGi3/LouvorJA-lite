@@ -31,20 +31,66 @@
   </section>
 
   <section class="liturgia">
-    <h2>Liturgia da semana</h2>
-    <ol id="itens-liturgia"></ol>
-    <p id="liturgia-vazia" class="vazio">Nenhum item ainda — busque um hino e clique em
-      "+ adicionar".</p>
+    <div class="abas" role="tablist">
+      <button id="aba-semana" class="aba ativa" type="button" role="tab">Liturgia da semana</button>
+      <button id="aba-fixos" class="aba" type="button" role="tab">Hinos fixos</button>
+    </div>
+
+    <div id="painel-semana" class="painel">
+      <ol id="itens-liturgia"></ol>
+      <p id="liturgia-vazia" class="vazio">Nenhum item ainda — busque um hino e clique em
+        "+ adicionar".</p>
+    </div>
+
+    <div id="painel-fixos" class="painel" hidden>
+      <p class="ajuda">Os momentos que se repetem todo culto. Clique no nome para renomear e em
+        "+ hino" para escolher o hino do momento — o "+" da busca cai no momento marcado (clicar
+        na linha também o marca). O "→" copia o hino para a liturgia da semana. Louvor que não
+        está no banco entra por "+ vídeo": o link do YouTube abre numa aba, e o momento passa a
+        ter o vídeo no lugar do hino.</p>
+      <ol id="itens-fixos"></ol>
+      <button id="novo-fixo" type="button" class="secundario">+ novo momento</button>
+    </div>
   </section>
 </main>
 
 <footer id="barra-projecao">
-  <span id="item-atual">Nenhum hino selecionado</span>
-  <div class="navegacao">
-    <button id="slide-anterior" type="button">◀ Anterior</button>
-    <span id="slide-contador">0/0</span>
-    <button id="slide-proximo" type="button">Próximo ▶</button>
+  <div class="linha-superior">
+    <span id="item-atual">Nenhum hino selecionado</span>
+    <div class="navegacao">
+      <button id="slide-anterior" type="button">◀ Anterior</button>
+      <span id="slide-contador">0/0</span>
+      <button id="slide-proximo" type="button">Próximo ▶</button>
+    </div>
   </div>
+
+  <div id="player" class="player" hidden>
+    <button id="player-play" type="button" class="play" title="Tocar/pausar (P)">▶</button>
+
+    <div class="faixas" role="group" aria-label="Faixa de áudio">
+      <button id="faixa-cantado" type="button" class="faixa ativa">Cantado</button>
+      <button id="faixa-playback" type="button" class="faixa">Playback</button>
+    </div>
+
+    <input type="range" id="player-progresso" min="0" max="0" step="0.1" value="0"
+           aria-label="Posição da música">
+    <span id="player-tempo" class="tempo">0:00 / 0:00</span>
+
+    <label class="volume">
+      <span aria-hidden="true">🔊</span>
+      <input type="range" id="player-volume" min="0" max="1" step="0.01" value="1"
+             aria-label="Volume">
+    </label>
+
+    <label class="seguir" title="O slide vira sozinho, no tempo gravado no banco">
+      <input type="checkbox" id="player-seguir" checked>
+      Seguir áudio
+    </label>
+
+    <span id="player-aviso" class="aviso" hidden></span>
+  </div>
+
+  <audio id="audio" preload="metadata"></audio>
 </footer>
 
 <script src="/static/controle.js"></script>

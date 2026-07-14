@@ -12,14 +12,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.config import DATA_DIR, DEFAULT_SOURCE_DIR  # noqa: E402
 
 TABELAS_ESPERADAS = [
-    "HINARIO_ADVENTISTA",
-    "HINARIO_ADVENTISTA_1996",
-    "MUSICAS",
-    "ALBUM",
-    "ALBUM_MUSICAS",
-    "LISTA_MUSICAS_TODAS",
-    "MUSICAS_SLIDE",
-    "MUSICAS_LETRA",
+    "musics",
+    "lyrics",
+    "files",
+    "albums",
+    "albums_musics",
+    "categories",
+    "categories_albums",
 ]
 
 
@@ -64,30 +63,28 @@ def validar_e_copiar_banco(source_db: Path, dest_db: Path) -> dict:
     return {"tables_found": sorted(tabelas), "tables_missing": faltando}
 
 
+SQL_IMAGENS_REFERENCIADAS = """
+    SELECT f.type, f.file_name
+    FROM files f
+    WHERE f.type IN ('image_album', 'image_music')
+      AND f.id_file IN (
+          SELECT id_file_image FROM musics WHERE id_file_image IS NOT NULL
+          UNION SELECT id_file_image FROM lyrics WHERE id_file_image IS NOT NULL
+          UNION SELECT id_file_image FROM albums WHERE id_file_image IS NOT NULL
+      )
+"""
+
+
 def _arquivos_referenciados(dest_db: Path) -> tuple[set[str], set[str]]:
     conn = sqlite3.connect(f"file:{dest_db}?mode=ro", uri=True)
     capas: set[str] = set()
     imagens: set[str] = set()
     try:
-        tabelas = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if "ALBUM" in tabelas:
-            capas = {
-                r[0] for r in conn.execute(
-                    "SELECT DISTINCT IMAGEM FROM ALBUM WHERE IMAGEM IS NOT NULL AND IMAGEM <> ''"
-                ) if r[0]
-            }
-        if "MUSICAS_SLIDE" in tabelas:
-            imagens |= {
-                r[0] for r in conn.execute(
-                    "SELECT DISTINCT IMAGEM FROM MUSICAS_SLIDE WHERE IMAGEM IS NOT NULL AND IMAGEM <> ''"
-                ) if r[0]
-            }
-        if "MUSICAS" in tabelas:
-            imagens |= {
-                r[0] for r in conn.execute(
-                    "SELECT DISTINCT IMAGEM FROM MUSICAS WHERE IMAGEM IS NOT NULL AND IMAGEM <> ''"
-                ) if r[0]
-            }
+        for tipo, file_name in conn.execute(SQL_IMAGENS_REFERENCIADAS):
+            if not file_name:
+                continue
+            destino = capas if tipo == "image_album" else imagens
+            destino.add(file_name)
     finally:
         conn.close()
     return capas, imagens

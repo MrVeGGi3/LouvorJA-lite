@@ -10,8 +10,8 @@ def test_salvar_e_carregar_liturgia():
         titulo="Culto de Sábado",
         itens=[
             ItemLiturgia(
-                ordem=1, tipo="hino", origem="HINARIO_ADVENTISTA",
-                ref_id=1, titulo_exibicao="1 - Grande é o Senhor",
+                ordem=1, tipo="hino", origem="hinario",
+                ref_id=1, titulo_exibicao="1 - Hino de Teste Um",
             )
         ],
     )

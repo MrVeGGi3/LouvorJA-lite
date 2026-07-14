@@ -12,28 +12,55 @@ function aplicarSlide(estado) {
 
   letraEl.textContent = slide.letra || "";
   letraEl.style.color = slide.cor_letra || "#ffffff";
-  letraEl.style.fontSize = `${slide.tamanho_letra || 40}pt`;
+  // O tamanho vem em % da altura da tela (o título é maior que a letra), como no LouvorJA.
+  letraEl.style.fontSize = `${slide.tamanho_letra || 14}vh`;
 
   if (slide.letra_aux) {
     letraAuxEl.textContent = slide.letra_aux;
     letraAuxEl.style.color = slide.cor_letra_aux || slide.cor_letra || "#ffffff";
+    letraAuxEl.style.fontSize = `${slide.tamanho_letra_aux || 10}vh`;
     letraAuxEl.style.display = "block";
   } else {
     letraAuxEl.style.display = "none";
   }
 }
 
+function aplicarEstado(estado) {
+  if (estado.atualizado_em === ultimaAtualizacao) return;
+  ultimaAtualizacao = estado.atualizado_em;
+  aplicarSlide(estado);
+}
+
 async function atualizar() {
   try {
     const resp = await fetch("/api/projecao/estado");
     if (!resp.ok) return;
-    const estado = await resp.json();
-    if (estado.atualizado_em === ultimaAtualizacao) return;
-    ultimaAtualizacao = estado.atualizado_em;
-    aplicarSlide(estado);
+    aplicarEstado(await resp.json());
   } catch {
     // Mantém o último slide renderizado em caso de falha momentânea do servidor.
   }
+}
+
+// O SSE entrega a virada de slide na hora; o polling fica como rede de segurança, porque meio
+// segundo de atraso é invisível num clique mas atrapalha a sincronia com o áudio.
+let polling = null;
+
+function iniciarPolling() {
+  if (polling === null) polling = setInterval(atualizar, 500);
+}
+
+function conectarStream() {
+  const stream = new EventSource("/api/projecao/stream");
+
+  stream.addEventListener("message", (evento) => {
+    clearInterval(polling);
+    polling = null;
+    aplicarEstado(JSON.parse(evento.data));
+  });
+
+  stream.addEventListener("error", () => {
+    iniciarPolling();
+  });
 }
 
 document.addEventListener("keydown", (evento) => {
@@ -49,4 +76,8 @@ telaEl.addEventListener("dblclick", () => {
 });
 
 atualizar();
-setInterval(atualizar, 500);
+if (window.EventSource) {
+  conectarStream();
+} else {
+  iniciarPolling();
+}

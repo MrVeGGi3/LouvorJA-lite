@@ -4,7 +4,9 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-OrigemHino = Literal["HINARIO_ADVENTISTA", "HINARIO_ADVENTISTA_1996", "MUSICAS"]
+# `ref_id` é sempre um `id_music`; a origem sobrou apenas como dica de exibição (de onde o
+# item foi escolhido), não como espaço de identificadores separado.
+OrigemHino = Literal["hinario", "hinario_1996", "musicas"]
 
 
 class ItemLiturgia(BaseModel):

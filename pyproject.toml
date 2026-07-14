@@ -5,6 +5,8 @@ description = "Busca de hinos, liturgia semanal e modo de projeção, reaproveit
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
+    # O seek do player depende de Range HTTP no FileResponse, que só existe a partir da 0.45.
+    "starlette>=0.45",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.7",
 ]

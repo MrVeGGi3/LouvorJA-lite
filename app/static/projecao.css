@@ -17,23 +17,52 @@ html, body {
   transition: background-color 400ms ease, background-image 400ms ease;
 }
 
-#letra {
-  font-family: system-ui, sans-serif;
+/* A fonte vai embutida: o pacote roda de pendrive em PC de igreja, e a Liberation Sans Narrow
+   (clone métrico da Arial Narrow) vem num pacote que raramente está instalado. Sem embutir, a
+   projeção cairia numa condensada qualquer justo na máquina que não podemos inspecionar.
+   Licença em fontes/LICENCA-LiberationSansNarrow.txt (GPL-2 com exceção de fonte). */
+@font-face {
+  font-family: "LouvorJA Narrow";
+  src: url("/static/fontes/LiberationSansNarrow-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "LouvorJA Narrow";
+  src: url("/static/fontes/LiberationSansNarrow-Bold.ttf") format("truetype");
+  font-weight: bold;
+  font-display: block;
+}
+
+/* Mesmo estilo do LouvorJA Desktop (fmMusica.dfm): Arial Narrow negrito, centralizada. Cor e
+   tamanho vêm de cada slide (o título é dourado e maior que a letra), e o tamanho é uma
+   porcentagem da ALTURA da tela — escalar pela altura é o que faz a letra crescer junto com o
+   telão; qualquer teto em px ou rem a deixaria pequena num projetor grande. */
+#letra,
+#letra-aux {
+  /* A embutida primeiro; as do sistema ficam só como rede de segurança. */
+  font-family: "LouvorJA Narrow", "Arial Narrow", "Liberation Sans Narrow",
+               "DejaVu Sans Condensed", sans-serif;
+  font-weight: bold;
+  text-transform: uppercase;
   text-align: center;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  max-width: 90vw;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  max-width: 92vw;
+  /* O original não tem sombra — conta com fundos escuros. A sombra suave só protege a leitura
+     quando o fundo é uma foto clara, sem mudar o desenho da fonte. */
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
   transition: opacity 400ms ease;
 }
 
+#letra {
+  font-size: 14vh; /* substituído por slide (tamanho_letra) */
+  line-height: 1.15;
+}
+
 #letra-aux {
-  font-family: system-ui, sans-serif;
-  text-align: center;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  max-width: 90vw;
-  margin-top: 1rem;
-  opacity: 0.8;
-  transition: opacity 400ms ease;
+  font-size: 10vh; /* substituído por slide (tamanho_letra_aux) */
+  line-height: 1.2;
+  margin-top: 0.4em;
 }
