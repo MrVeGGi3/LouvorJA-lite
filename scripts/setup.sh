@@ -37,7 +37,21 @@ EXTRAS="dev"
 
 if [[ ! -d "$VENV" ]]; then
   echo "==> Criando o virtualenv em .venv"
-  python3 -m venv "$VENV"
+  python3 -m venv "$VENV" || {
+    echo "ERRO: não consegui criar o venv." >&2
+    echo "      Em Debian/Ubuntu instale o pacote: sudo apt install python3-venv" >&2
+    exit 1
+  }
+fi
+
+# Em alguns sistemas (Debian/Ubuntu sem python3-venv completo) o venv nasce sem pip.
+if ! "$PY" -m pip --version >/dev/null 2>&1; then
+  echo "==> pip ausente no venv; instalando com ensurepip"
+  "$PY" -m ensurepip --upgrade || {
+    echo "ERRO: o venv ficou sem pip e o ensurepip não está disponível." >&2
+    echo "      Em Debian/Ubuntu instale o pacote: sudo apt install python3-venv" >&2
+    exit 1
+  }
 fi
 
 echo "==> Instalando dependências (.[$EXTRAS])"
