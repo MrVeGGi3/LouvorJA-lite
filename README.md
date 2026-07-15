@@ -10,21 +10,21 @@ precisar de internet na igreja.
 
 ## Início rápido
 
-Do zero até projetando, numa máquina com internet. O `scripts/setup.sh` cuida de cada etapa e é
-idempotente — se algo cair no meio, rode de novo que ele continua de onde parou.
+Do zero até projetando, numa máquina com internet — um comando só monta o ambiente, obtém o banco,
+baixa a mídia (~15 GB) e sobe o servidor:
 
 ```bash
-# 1. Cria o .venv e instala as dependências
-./scripts/setup.sh
-
-# 2. Baixa o banco de hinos e a mídia (~15 GB — retomável)
-./scripts/setup.sh --dados
-
-# 3. Sobe o servidor em http://127.0.0.1:8000
-./scripts/setup.sh --run
+./scripts/setup.sh --tudo
 ```
 
-Os passos combinam: `./scripts/setup.sh --dados --run` faz o 2 e o 3 de uma vez.
+Tudo é idempotente: se algo cair no meio (o download é retomável), rode de novo que ele continua de
+onde parou. Dá para separar as etapas quando for conveniente:
+
+```bash
+./scripts/setup.sh          # 1. cria o .venv e instala as dependências
+./scripts/setup.sh --dados  # 2. obtém o banco de hinos e baixa a mídia
+./scripts/setup.sh --run    # 3. sobe o servidor em http://127.0.0.1:8000
+```
 
 Depois, abra `http://127.0.0.1:8000/controle` na tela do operador. Ao selecionar um hino e clicar
 em "Abrir Projeção", uma nova janela abre em `http://127.0.0.1:8000/projecao` — arraste para o

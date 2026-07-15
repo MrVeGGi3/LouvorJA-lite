@@ -4,6 +4,7 @@
 #
 # Tudo aqui é idempotente — rodar de novo continua de onde parou, não refaz o que já existe.
 #
+#   ./scripts/setup.sh --tudo           # do zero ao ar: deps + banco + mídia + sobe o servidor
 #   ./scripts/setup.sh                  # cria .venv + instala as deps
 #   ./scripts/setup.sh --dados          # + importa o banco e baixa a mídia (~15 GB)
 #   ./scripts/setup.sh --pacote         # + monta dist/LouvorJA-Lite-<versão>/ (AppImage + data/)
@@ -19,12 +20,13 @@ DADOS=0 PACOTE=0 RUN=0
 SOURCE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --tudo)   DADOS=1; RUN=1 ;;
     --dados)  DADOS=1 ;;
     --pacote) PACOTE=1 ;;
     --run)    RUN=1 ;;
     --source) SOURCE="${2:?--source precisa de um caminho}"; shift ;;
     -h|--help)
-      sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) echo "opção desconhecida: $1" >&2; exit 2 ;;
   esac
