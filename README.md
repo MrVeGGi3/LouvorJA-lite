@@ -33,6 +33,20 @@ máquina em vez de baixar tudo.
 
 ## Rodando
 
+O `scripts/setup.sh` cria o `.venv` (se ainda não existir), instala as dependências e — com as
+flags — importa o banco, baixa a mídia e monta o pacote. É idempotente: rodar de novo continua de
+onde parou.
+
+```bash
+./scripts/setup.sh          # cria .venv + instala as dependências
+./scripts/setup.sh --run    # e já sobe o servidor em http://127.0.0.1:8000
+./scripts/setup.sh --dados  # importa o banco (sync_data) e baixa a mídia (~15 GB)
+./scripts/setup.sh --pacote # monta dist/LouvorJA-Lite-<versão>/ (AppImage + data/) pro pendrive
+```
+
+Passe `--source /caminho/config` para importar o banco de outra instalação do LouvorJA Desktop. À
+mão, os mesmos passos são:
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
@@ -58,9 +72,13 @@ Músicas sem áudio baixado continuam projetando normalmente; só o player fica 
 ## Gerando o executável
 
 ```bash
-./scripts/build_appimage.sh                # dist/LouvorJA-Lite-x86_64.AppImage (~21 MB)
+./scripts/setup.sh --pacote                # tudo de uma vez: deps de build + mídia + pacote
+./scripts/build_appimage.sh                # só o dist/LouvorJA-Lite-x86_64.AppImage (~21 MB)
 python scripts/build_pacote.py --baixar    # AppImage + data/ prontos para o pendrive
 ```
+
+O `build_appimage.sh` usa PyInstaller, que fica no grupo opcional `build` do `pyproject.toml`
+(instale com `pip install -e ".[build]"`, ou deixe o `setup.sh --pacote` cuidar disso).
 
 O AppImage **não** contém as músicas — os ~15 GB ficam na pasta `data/` ao lado dele. O app
 procura os dados nesta ordem:
