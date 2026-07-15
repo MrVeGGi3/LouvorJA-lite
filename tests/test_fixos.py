@@ -44,7 +44,7 @@ def test_remover_inexistente():
 
 
 def test_origem_do_hino_chega_na_liturgia_da_semana():
-    """O momento fixo é copiado para a semana, e o item de lá carrega a origem do hino."""
+    """O momento fixo é copiado para o dia, e o item de lá carrega a origem do hino."""
     fixo = client.post(
         "/api/fixos/itens",
         json={
@@ -57,7 +57,7 @@ def test_origem_do_hino_chega_na_liturgia_da_semana():
     assert fixo["origem"] == "hinario_1996"
 
     resp = client.post(
-        "/api/liturgias/2026-07-18/itens",
+        "/api/liturgias/sexta/itens",
         json={
             "ordem": 0,
             "tipo": "hino",

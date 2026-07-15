@@ -8,8 +8,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.config import DATA_DIR, DEFAULT_SOURCE_DIR  # noqa: E402
+
+# Nome do banco no servidor oficial (mesmo host das músicas). O catálogo em espanhol existe como
+# es_database.db, mas o Lite só usa o português.
+BANCO_REMOTO = "config/pt_database.db"
 
 TABELAS_ESPERADAS = [
     "musics",
@@ -24,11 +29,17 @@ TABELAS_ESPERADAS = [
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Importa/atualiza os dados do LouvorJA Desktop para o LouvorJA Lite."
+        description="Importa/atualiza o banco de hinos do LouvorJA Lite. Sem argumentos, encontra "
+                    "a origem sozinho: LouvorJA Desktop instalado > data/ já presente > servidor.",
     )
     parser.add_argument(
-        "--source", type=Path, default=DEFAULT_SOURCE_DIR,
-        help="Pasta config/ de uma instalação existente do LouvorJA Desktop",
+        "--source", type=Path, default=None,
+        help="Força a origem: pasta config/ de uma instalação do LouvorJA Desktop",
+    )
+    parser.add_argument(
+        "--do-servidor", action="store_true",
+        help="Força baixar o banco do servidor oficial (não precisa do LouvorJA Desktop). As "
+             "imagens vêm depois com scripts/download_media.py.",
     )
     parser.add_argument("--dest", type=Path, default=DATA_DIR, help="Pasta data/ do LouvorJA Lite")
     parser.add_argument(
@@ -61,6 +72,26 @@ def validar_e_copiar_banco(source_db: Path, dest_db: Path) -> dict:
 
     faltando = [t for t in TABELAS_ESPERADAS if t not in tabelas]
     return {"tables_found": sorted(tabelas), "tables_missing": faltando}
+
+
+def baixar_banco_do_servidor(dest_db: Path) -> dict:
+    """Baixa o banco do servidor oficial e o valida como o modo local faz.
+
+    Baixa para um arquivo temporário e delega a validação/promoção a validar_e_copiar_banco, então
+    uma queda no meio nunca substitui o banco bom por um truncado.
+    """
+    import louvorja_api  # importado aqui para não exigir rede quando se usa uma origem local
+
+    dest_db.parent.mkdir(parents=True, exist_ok=True)
+    baixado = dest_db.with_suffix(".download")
+    print(f"Baixando o banco do servidor ({BANCO_REMOTO}) ...")
+    conexao = louvorja_api.obter_conexao()
+    try:
+        louvorja_api.baixar(conexao, BANCO_REMOTO, baixado)
+        info = validar_e_copiar_banco(baixado, dest_db)
+    finally:
+        baixado.unlink(missing_ok=True)
+    return info
 
 
 SQL_IMAGENS_REFERENCIADAS = """
@@ -143,24 +174,44 @@ def sincronizar_imagens(source_dir: Path, dest_db: Path, dest_capas: Path, dest_
 
 def main():
     args = parse_args()
-    source_db = args.source / "database.db"
     dest_db = args.dest / "database.db"
-
-    print(f"Lendo de: {args.source}")
     print(f"Gravando em: {args.dest}")
 
-    info_banco = validar_e_copiar_banco(source_db, dest_db)
+    # Resolve a origem do banco. --source e --do-servidor forçam; sem eles, decide sozinho:
+    # LouvorJA Desktop instalado > banco já em data/ (não reimporta) > servidor oficial.
+    source = args.source
+    do_servidor = args.do_servidor
+    if source is None and not do_servidor:
+        if (DEFAULT_SOURCE_DIR / "database.db").exists():
+            source = DEFAULT_SOURCE_DIR
+        elif dest_db.exists():
+            print(f"Banco já presente em {args.dest} — nada a importar.")
+            return
+        else:
+            print("Nenhum banco local (LouvorJA Desktop ou data/) — baixando do servidor.")
+            do_servidor = True
+
+    if do_servidor:
+        info_banco = baixar_banco_do_servidor(dest_db)
+        origem = "servidor"
+        # As imagens (capas/imagens) chegam com scripts/download_media.py, junto das músicas.
+        info_imagens = {"capas_copied": 0, "imagens_copied": 0, "skipped_unchanged": 0}
+    else:
+        source_db = source / "database.db"
+        print(f"Lendo de: {source}")
+        info_banco = validar_e_copiar_banco(source_db, dest_db)
+        origem = str(source)
+        info_imagens = sincronizar_imagens(
+            source, dest_db, args.dest / "capas", args.dest / "imagens", args.images
+        )
+
     if info_banco["tables_missing"]:
         print(f"AVISO: tabelas esperadas não encontradas no banco: {info_banco['tables_missing']}")
 
-    info_imagens = sincronizar_imagens(
-        args.source, dest_db, args.dest / "capas", args.dest / "imagens", args.images
-    )
-
     manifest = {
         "last_sync_at": datetime.now(timezone.utc).isoformat(),
-        "source": str(args.source),
-        "images_mode": args.images,
+        "source": origem,
+        "images_mode": "servidor" if args.do_servidor else args.images,
         "database": info_banco,
         **info_imagens,
     }

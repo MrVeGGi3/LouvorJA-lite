@@ -1,4 +1,4 @@
-const semanaInput = document.getElementById("semana");
+const diasSemanaEl = document.getElementById("dias-semana");
 const buscaInput = document.getElementById("busca-input");
 const buscaEdicao = document.getElementById("busca-edicao");
 const resultadosEl = document.getElementById("resultados");
@@ -24,12 +24,20 @@ const volumeEl = document.getElementById("player-volume");
 const seguirEl = document.getElementById("player-seguir");
 const avisoEl = document.getElementById("player-aviso");
 
+// A liturgia é organizada por dia da semana; o índice segue Date.getDay() (0=domingo).
+const DIAS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+const ROTULOS_DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
 let liturgiaAtual = null;
+let diaAtual = null;
 let fixosAtuais = null;
 let fixoDestinoId = null;
 let abaAtiva = "semana";
 let resultadosVisiveis = [];
 let buscaTimeout = null;
+// Janela de projeção aberta pelo play/"Abrir Projeção" — reutilizada e focada em vez de reaberta.
+let projecaoWin = null;
+let vigiaProjecao = null;
 
 // Estado do player: as faixas da música atual, os slides e a linha do tempo em segundos.
 let faixas = { cantado: null, playback: null };
@@ -38,8 +46,8 @@ let slidesAtuais = [];
 let linhaDoTempo = [];
 let slideProjetado = -1;
 
-function hojeISO() {
-  return new Date().toISOString().slice(0, 10);
+function diaHojeSlug() {
+  return DIAS[new Date().getDay()];
 }
 
 async function api(path, options = {}) {
@@ -119,9 +127,8 @@ function renderResultados(lista) {
 }
 
 async function carregarLiturgia() {
-  const week = semanaInput.value;
   try {
-    liturgiaAtual = await api(`/api/liturgias/${week}`);
+    liturgiaAtual = await api(`/api/liturgias/${diaAtual}`);
   } catch {
     liturgiaAtual = null;
   }
@@ -173,8 +180,7 @@ function renderLiturgia() {
 }
 
 async function adicionarItemLiturgia(item) {
-  const week = semanaInput.value;
-  liturgiaAtual = await api(`/api/liturgias/${week}/itens`, {
+  liturgiaAtual = await api(`/api/liturgias/${diaAtual}/itens`, {
     method: "POST",
     body: JSON.stringify({
       ordem: 0,
@@ -188,17 +194,15 @@ async function adicionarItemLiturgia(item) {
 }
 
 async function removerItem(itemId) {
-  const week = semanaInput.value;
-  liturgiaAtual = await api(`/api/liturgias/${week}/itens/${itemId}`, { method: "DELETE" });
+  liturgiaAtual = await api(`/api/liturgias/${diaAtual}/itens/${itemId}`, { method: "DELETE" });
   renderLiturgia();
 }
 
 async function moverItem(de, para) {
-  const week = semanaInput.value;
   const ids = liturgiaAtual.itens.map((i) => i.id);
   const [movido] = ids.splice(de, 1);
   ids.splice(para, 0, movido);
-  liturgiaAtual = await api(`/api/liturgias/${week}/reordenar`, {
+  liturgiaAtual = await api(`/api/liturgias/${diaAtual}/reordenar`, {
     method: "PUT",
     body: JSON.stringify(ids),
   });
@@ -206,6 +210,10 @@ async function moverItem(de, para) {
 }
 
 async function projetarItem(item, itemIndex = null) {
+  // Antes de qualquer await: a projeção precisa abrir ainda dentro do gesto do clique, senão o
+  // navegador bloqueia o pop-up e nem chega a pedir a permissão de gerenciamento de janelas.
+  garantirProjecao();
+
   const [slides, audio] = await Promise.all([
     api(`/api/musicas/${item.ref_id}/slides`),
     api(`/api/musicas/${item.ref_id}/audio`).catch(() => ({ cantado: null, playback: null })),
@@ -215,7 +223,7 @@ async function projetarItem(item, itemIndex = null) {
     method: "POST",
     body: JSON.stringify({
       liturgia_id: liturgiaAtual?.id || null,
-      week_of: semanaInput.value,
+      dia: diaAtual,
       item_index: itemIndex,
       titulo_item: item.titulo_exibicao || item.titulo,
       slides,
@@ -228,6 +236,50 @@ async function projetarItem(item, itemIndex = null) {
   slidesAtuais = slides;
   slideProjetado = 0;
   prepararPlayer(audio);
+}
+
+// Garante que a projeção esteja aberta e, quando há um monitor externo (Window Management API, só
+// Chromium e com permissão), joga a janela pra ele. Precisa ser chamada dentro do gesto do clique:
+// a janela é aberta de imediato (para escapar do bloqueador de pop-up) e só depois é movida.
+async function garantirProjecao() {
+  if (projecaoWin && !projecaoWin.closed) {
+    projecaoWin.focus();
+    return;
+  }
+
+  projecaoWin = window.open("/projecao", "louvorja-projecao", "popup,width=1280,height=720");
+  if (projecaoWin) vigiarProjecao();
+
+  // Sem multitela ou fora do Chromium, fica como janela normal (arraste pro telão e F11/duplo-clique).
+  if (!(window.screen?.isExtended && "getScreenDetails" in window)) return;
+
+  let detalhes;
+  try {
+    detalhes = await window.getScreenDetails();
+  } catch {
+    return; // permissão negada — segue como janela normal
+  }
+
+  const alvo =
+    detalhes.screens.find((s) => s !== detalhes.currentScreen) ||
+    detalhes.screens.find((s) => !s.isPrimary);
+  if (alvo && projecaoWin && !projecaoWin.closed) {
+    projecaoWin.moveTo(alvo.availLeft, alvo.availTop);
+    projecaoWin.resizeTo(alvo.availWidth, alvo.availHeight);
+  }
+}
+
+// Fechar a projeção para a música: não há evento confiável entre janelas, então vigiamos o
+// `closed` da janela e, quando ela some, pausamos o áudio e voltamos ao início da faixa.
+function vigiarProjecao() {
+  clearInterval(vigiaProjecao);
+  vigiaProjecao = setInterval(() => {
+    if (projecaoWin && !projecaoWin.closed) return;
+    clearInterval(vigiaProjecao);
+    vigiaProjecao = null;
+    audioEl.pause();
+    audioEl.currentTime = 0;
+  }, 500);
 }
 
 // ---------------------------------------------------------------- hinos fixos
@@ -520,7 +572,8 @@ function prepararPlayer(audio) {
 
   playerEl.hidden = false;
   faixaAtual = disponivel(faixas.cantado) ? "cantado" : "playback";
-  trocarFaixa(faixaAtual, { autoplay: false });
+  // O clique no ▶ é o gesto que autoriza o autoplay: a faixa Cantado já começa a tocar.
+  trocarFaixa(faixaAtual, { autoplay: true });
 
   const semPlayback = faixas.playback && !faixas.playback.disponivel;
   avisoEl.hidden = !semPlayback;
@@ -620,9 +673,7 @@ async function navegarSlide(direcao) {
 document.getElementById("slide-anterior").addEventListener("click", () => navegarSlide("ant"));
 document.getElementById("slide-proximo").addEventListener("click", () => navegarSlide("prox"));
 
-document.getElementById("abrir-projecao").addEventListener("click", () => {
-  window.open("/projecao", "louvorja-projecao", "fullscreen=yes");
-});
+document.getElementById("abrir-projecao").addEventListener("click", garantirProjecao);
 
 buscaInput.addEventListener("input", () => {
   clearTimeout(buscaTimeout);
@@ -630,8 +681,29 @@ buscaInput.addEventListener("input", () => {
 });
 buscaEdicao.addEventListener("change", buscar);
 
-semanaInput.value = hojeISO();
-semanaInput.addEventListener("change", carregarLiturgia);
+function renderDiasSemana() {
+  diasSemanaEl.innerHTML = "";
+  DIAS.forEach((dia, i) => {
+    const bt = document.createElement("button");
+    bt.type = "button";
+    bt.className = "dia" + (dia === diaAtual ? " ativo" : "");
+    bt.textContent = ROTULOS_DIAS[i];
+    bt.dataset.dia = dia;
+    bt.addEventListener("click", () => selecionarDia(dia));
+    diasSemanaEl.appendChild(bt);
+  });
+}
+
+function selecionarDia(dia) {
+  diaAtual = dia;
+  diasSemanaEl.querySelectorAll(".dia").forEach((bt) => {
+    bt.classList.toggle("ativo", bt.dataset.dia === dia);
+  });
+  carregarLiturgia();
+}
+
+diaAtual = diaHojeSlug();
+renderDiasSemana();
 carregarLiturgia();
 carregarFixos();
 

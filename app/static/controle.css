@@ -120,6 +120,31 @@ button:hover { background: #4468e8; }
 
 .painel[hidden] { display: none; }
 
+.dias-semana {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.9rem;
+}
+
+.dia {
+  flex: 1;
+  background: #1b1e24;
+  border: 1px solid #2a2d33;
+  border-radius: 6px;
+  padding: 0.45rem 0;
+  color: #8b93a1;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.dia:hover { color: #d5dae2; }
+
+.dia.ativo {
+  background: #2f6fd0;
+  border-color: #2f6fd0;
+  color: #fff;
+}
+
 .ajuda {
   margin: 0 0 0.8rem;
   font-size: 0.82rem;
