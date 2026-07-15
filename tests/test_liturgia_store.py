@@ -1,12 +1,10 @@
-from datetime import date
-
 from app.liturgia import store
 from app.liturgia.models import ItemLiturgia, Liturgia
 
 
 def test_salvar_e_carregar_liturgia():
     liturgia = Liturgia(
-        week_of=date(2026, 7, 12),
+        dia="sabado",
         titulo="Culto de Sábado",
         itens=[
             ItemLiturgia(
@@ -17,7 +15,7 @@ def test_salvar_e_carregar_liturgia():
     )
     store.salvar(liturgia)
 
-    carregada = store.carregar(date(2026, 7, 12))
+    carregada = store.carregar("sabado")
     assert carregada is not None
     assert carregada.titulo == "Culto de Sábado"
     assert len(carregada.itens) == 1
@@ -25,19 +23,19 @@ def test_salvar_e_carregar_liturgia():
 
 
 def test_carregar_inexistente_retorna_none():
-    assert store.carregar(date(2099, 1, 1)) is None
+    assert store.carregar("domingo") is None
 
 
 def test_listar_inclui_liturgias_salvas():
-    store.salvar(Liturgia(week_of=date(2026, 7, 12), titulo="A"))
-    store.salvar(Liturgia(week_of=date(2026, 7, 19), titulo="B"))
-    semanas = {l.week_of for l in store.listar()}
-    assert date(2026, 7, 12) in semanas
-    assert date(2026, 7, 19) in semanas
+    store.salvar(Liturgia(dia="sabado", titulo="A"))
+    store.salvar(Liturgia(dia="domingo", titulo="B"))
+    dias = {l.dia for l in store.listar()}
+    assert "sabado" in dias
+    assert "domingo" in dias
 
 
 def test_remover_liturgia():
-    store.salvar(Liturgia(week_of=date(2026, 8, 1), titulo="C"))
-    assert store.remover(date(2026, 8, 1)) is True
-    assert store.carregar(date(2026, 8, 1)) is None
-    assert store.remover(date(2026, 8, 1)) is False
+    store.salvar(Liturgia(dia="quarta", titulo="C"))
+    assert store.remover("quarta") is True
+    assert store.carregar("quarta") is None
+    assert store.remover("quarta") is False

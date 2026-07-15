@@ -1,10 +1,8 @@
-from datetime import date
-
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 
 from app.liturgia import store
-from app.liturgia.models import ItemLiturgia, Liturgia
+from app.liturgia.models import DIAS, ItemLiturgia, Liturgia, rotulo_dia
 
 router = APIRouter(prefix="/api/liturgias", tags=["liturgia"])
 
@@ -13,14 +11,20 @@ class AtualizarTitulo(BaseModel):
     titulo: str
 
 
+def _validar_dia(dia: str) -> None:
+    if dia not in DIAS:
+        raise HTTPException(status_code=404, detail="Dia da semana inválido")
+
+
 @router.get("")
 def listar():
     return [l.model_dump(mode="json") for l in store.listar()]
 
 
-@router.get("/{week_of}")
-def detalhe(week_of: date):
-    liturgia = store.carregar(week_of)
+@router.get("/{dia}")
+def detalhe(dia: str):
+    _validar_dia(dia)
+    liturgia = store.carregar(dia)
     if liturgia is None:
         raise HTTPException(status_code=404, detail="Liturgia não encontrada")
     return liturgia.model_dump(mode="json")
@@ -28,15 +32,16 @@ def detalhe(week_of: date):
 
 @router.post("")
 def criar(liturgia: Liturgia):
-    if store.carregar(liturgia.week_of) is not None:
-        raise HTTPException(status_code=409, detail="Já existe liturgia para essa semana")
+    if store.carregar(liturgia.dia) is not None:
+        raise HTTPException(status_code=409, detail="Já existe liturgia para esse dia")
     store.salvar(liturgia)
     return liturgia.model_dump(mode="json")
 
 
-@router.put("/{week_of}")
-def atualizar_titulo(week_of: date, corpo: AtualizarTitulo):
-    liturgia = store.carregar(week_of)
+@router.put("/{dia}")
+def atualizar_titulo(dia: str, corpo: AtualizarTitulo):
+    _validar_dia(dia)
+    liturgia = store.carregar(dia)
     if liturgia is None:
         raise HTTPException(status_code=404, detail="Liturgia não encontrada")
     liturgia.titulo = corpo.titulo
@@ -44,27 +49,30 @@ def atualizar_titulo(week_of: date, corpo: AtualizarTitulo):
     return liturgia.model_dump(mode="json")
 
 
-@router.delete("/{week_of}")
-def remover(week_of: date):
-    if not store.remover(week_of):
+@router.delete("/{dia}")
+def remover(dia: str):
+    _validar_dia(dia)
+    if not store.remover(dia):
         raise HTTPException(status_code=404, detail="Liturgia não encontrada")
     return {"status": "ok"}
 
 
-@router.post("/{week_of}/itens")
-def adicionar_item(week_of: date, item: ItemLiturgia):
-    liturgia = store.carregar(week_of)
+@router.post("/{dia}/itens")
+def adicionar_item(dia: str, item: ItemLiturgia):
+    _validar_dia(dia)
+    liturgia = store.carregar(dia)
     if liturgia is None:
-        liturgia = Liturgia(week_of=week_of, titulo=f"Culto de {week_of.isoformat()}")
+        liturgia = Liturgia(dia=dia, titulo=f"Liturgia de {rotulo_dia(dia)}")
     item.ordem = len(liturgia.itens) + 1
     liturgia.itens.append(item)
     store.salvar(liturgia)
     return liturgia.model_dump(mode="json")
 
 
-@router.put("/{week_of}/itens/{item_id}")
-def editar_item(week_of: date, item_id: str, item: ItemLiturgia):
-    liturgia = store.carregar(week_of)
+@router.put("/{dia}/itens/{item_id}")
+def editar_item(dia: str, item_id: str, item: ItemLiturgia):
+    _validar_dia(dia)
+    liturgia = store.carregar(dia)
     if liturgia is None:
         raise HTTPException(status_code=404, detail="Liturgia não encontrada")
     for i, existente in enumerate(liturgia.itens):
@@ -76,9 +84,10 @@ def editar_item(week_of: date, item_id: str, item: ItemLiturgia):
     raise HTTPException(status_code=404, detail="Item não encontrado")
 
 
-@router.delete("/{week_of}/itens/{item_id}")
-def remover_item(week_of: date, item_id: str):
-    liturgia = store.carregar(week_of)
+@router.delete("/{dia}/itens/{item_id}")
+def remover_item(dia: str, item_id: str):
+    _validar_dia(dia)
+    liturgia = store.carregar(dia)
     if liturgia is None:
         raise HTTPException(status_code=404, detail="Liturgia não encontrada")
     liturgia.itens = [i for i in liturgia.itens if i.id != item_id]
@@ -88,9 +97,10 @@ def remover_item(week_of: date, item_id: str):
     return liturgia.model_dump(mode="json")
 
 
-@router.put("/{week_of}/reordenar")
-def reordenar(week_of: date, ordem_ids: list[str] = Body(...)):
-    liturgia = store.carregar(week_of)
+@router.put("/{dia}/reordenar")
+def reordenar(dia: str, ordem_ids: list[str] = Body(...)):
+    _validar_dia(dia)
+    liturgia = store.carregar(dia)
     if liturgia is None:
         raise HTTPException(status_code=404, detail="Liturgia não encontrada")
     por_id = {item.id: item for item in liturgia.itens}

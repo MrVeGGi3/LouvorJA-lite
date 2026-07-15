@@ -10,8 +10,6 @@
 <header>
   <h1>LouvorJA Lite</h1>
   <div class="semana">
-    <label for="semana">Semana</label>
-    <input type="date" id="semana">
     <button id="abrir-projecao" type="button">Abrir Projeção</button>
   </div>
 </header>
@@ -37,6 +35,7 @@
     </div>
 
     <div id="painel-semana" class="painel">
+      <div id="dias-semana" class="dias-semana" role="tablist"></div>
       <ol id="itens-liturgia"></ol>
       <p id="liturgia-vazia" class="vazio">Nenhum item ainda — busque um hino e clique em
         "+ adicionar".</p>

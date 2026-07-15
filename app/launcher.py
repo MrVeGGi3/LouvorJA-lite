@@ -1,5 +1,6 @@
 """Ponto de entrada do executável: sobe o servidor local e abre o navegador na tela de controle."""
 
+import shutil
 import socket
 import sys
 import threading
@@ -14,6 +15,20 @@ from app.main import app
 HOST = "127.0.0.1"
 PORTA_PADRAO = 8000
 TENTATIVAS = 20
+
+# A colocação automática da projeção no monitor externo usa a Window Management API, que só existe
+# em navegadores Chromium. Por isso preferimos abrir num deles; se nenhum estiver instalado, cai no
+# navegador padrão do sistema (onde a projeção abre em janela normal, pra arrastar até o telão).
+NAVEGADORES_CHROMIUM = [
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+    "microsoft-edge",
+    "microsoft-edge-stable",
+    "brave-browser",
+    "vivaldi-stable",
+]
 
 
 def _livre(porta: int) -> bool:
@@ -42,10 +57,26 @@ def porta_livre() -> int:
         return s.getsockname()[1]
 
 
+def _navegador_preferido() -> "webbrowser.BaseBrowser | None":
+    for nome in NAVEGADORES_CHROMIUM:
+        caminho = shutil.which(nome)
+        if caminho:
+            return webbrowser.BackgroundBrowser(caminho)
+    return None
+
+
 def abrir_navegador(url: str) -> None:
     # Dá um instante para o uvicorn começar a aceitar conexões antes de o navegador bater na porta.
     time.sleep(1.0)
-    webbrowser.open(url)
+    navegador = _navegador_preferido()
+    try:
+        if navegador is not None:
+            navegador.open(url)
+        else:
+            webbrowser.open(url)
+    except Exception:
+        # Qualquer falha ao abrir o Chromium escolhido: cai no navegador padrão do sistema.
+        webbrowser.open(url)
 
 
 def main() -> None:

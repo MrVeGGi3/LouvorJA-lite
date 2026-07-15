@@ -23,7 +23,7 @@ class SlideAtual(BaseModel):
 
 class EstadoProjecao(BaseModel):
     liturgia_id: Optional[str] = None
-    week_of: Optional[str] = None
+    dia: Optional[str] = None
     item_index: Optional[int] = None
     titulo_item: Optional[str] = None
     slides: list[SlideAtual] = Field(default_factory=list)

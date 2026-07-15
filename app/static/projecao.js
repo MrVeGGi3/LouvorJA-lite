@@ -75,6 +75,10 @@ telaEl.addEventListener("dblclick", () => {
   }
 });
 
+// Best-effort: alguns navegadores só entram em fullscreen com gesto próprio — nesses casos a
+// janela já nasce cobrindo o monitor externo e o duplo-clique completa o fullscreen.
+document.documentElement.requestFullscreen?.().catch(() => {});
+
 atualizar();
 if (window.EventSource) {
   conectarStream();
