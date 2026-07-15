@@ -69,6 +69,36 @@ procura os dados nesta ordem:
 2. `data/` ao lado do `.AppImage` (o caso do pendrive);
 3. `~/.local/share/louvorja-lite`.
 
+O `build_pacote.py` deixa tudo pronto em `dist/LouvorJA-Lite-<versão>/` (AppImage + `data/` +
+`LEIAME.txt`) — é essa pasta que vai inteira para o pendrive. O AppImage cru, sem os dados ao lado,
+fica em `dist/LouvorJA-Lite-x86_64.AppImage`.
+
+## Testando o pendrive em outro computador
+
+Formate o pendrive em **exFAT** (FAT32 funciona — nenhum arquivo passa de 4 GB —, mas copiar os
+~15 GB nele é bem mais lento). Copie a pasta `dist/LouvorJA-Lite-<versão>/` inteira, mantendo o
+AppImage e o `data/` **juntos**.
+
+No outro computador (precisa ser **Linux x86_64** — não roda em Windows, Mac nem ARM):
+
+```bash
+cd /run/media/USUARIO/LouvorJA-Lite
+./LouvorJA-Lite-x86_64.AppImage
+# se der erro, use o fallback que extrai e roda sem FUSE:
+./LouvorJA-Lite-x86_64.AppImage --appimage-extract-and-run
+```
+
+Os três tropeços mais comuns:
+
+- **O bit de executável some no exFAT/FAT.** Esses sistemas de arquivo não guardam a permissão de
+  execução, então rodar direto do pendrive pode falhar mesmo depois do `chmod +x`. Use
+  `--appimage-extract-and-run` ou copie a pasta para o disco do PC antes de rodar.
+- **Falta a `libfuse2`.** O AppImage precisa de FUSE; em distros novas (Ubuntu 22.04+) costuma
+  faltar e dá um erro tipo `dlopen: libfuse.so.2`. Na hora, `--appimage-extract-and-run` resolve;
+  de forma definitiva, `sudo apt install libfuse2` no computador de destino.
+- **Separar o `data/` do AppImage.** Sem a pasta `data/` ao lado (ou uma `LOUVORJA_LITE_DATA_DIR`
+  apontando para ela), o app não acha o banco de hinos nem os áudios.
+
 ## Testes
 
 ```bash
