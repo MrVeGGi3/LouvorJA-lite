@@ -37,6 +37,7 @@ let resultadosVisiveis = [];
 let buscaTimeout = null;
 // Janela de projeção aberta pelo play/"Abrir Projeção" — reutilizada e focada em vez de reaberta.
 let projecaoWin = null;
+let vigiaProjecao = null;
 
 // Estado do player: as faixas da música atual, os slides e a linha do tempo em segundos.
 let faixas = { cantado: null, playback: null };
@@ -247,6 +248,7 @@ async function garantirProjecao() {
   }
 
   projecaoWin = window.open("/projecao", "louvorja-projecao", "popup,width=1280,height=720");
+  if (projecaoWin) vigiarProjecao();
 
   // Sem multitela ou fora do Chromium, fica como janela normal (arraste pro telão e F11/duplo-clique).
   if (!(window.screen?.isExtended && "getScreenDetails" in window)) return;
@@ -265,6 +267,19 @@ async function garantirProjecao() {
     projecaoWin.moveTo(alvo.availLeft, alvo.availTop);
     projecaoWin.resizeTo(alvo.availWidth, alvo.availHeight);
   }
+}
+
+// Fechar a projeção para a música: não há evento confiável entre janelas, então vigiamos o
+// `closed` da janela e, quando ela some, pausamos o áudio e voltamos ao início da faixa.
+function vigiarProjecao() {
+  clearInterval(vigiaProjecao);
+  vigiaProjecao = setInterval(() => {
+    if (projecaoWin && !projecaoWin.closed) return;
+    clearInterval(vigiaProjecao);
+    vigiaProjecao = null;
+    audioEl.pause();
+    audioEl.currentTime = 0;
+  }, 500);
 }
 
 // ---------------------------------------------------------------- hinos fixos
