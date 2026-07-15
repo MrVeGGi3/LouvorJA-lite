@@ -34,21 +34,21 @@ Atalhos: `→`/espaço próximo slide, `←` anterior, `P` toca/pausa.
 
 ## De onde vêm os dados
 
-O passo 2 (`--dados`) resolve o banco de hinos (`database.db`) sozinho, nesta ordem:
+O passo 2 (`--dados`) chama o `scripts/sync_data.py`, que **encontra o banco de hinos
+(`database.db`) sozinho**, nesta ordem:
 
-1. `--source /caminho/config`, se você passar;
-2. um LouvorJA Desktop instalado (`~/.local/share/LouvorJA/config`), que já traz capas/imagens;
-3. o `data/database.db` já presente (`data/` copiado de outra máquina — não reimporta);
-4. senão, baixa `config/pt_database.db` do servidor oficial — funciona numa máquina zerada.
+1. um LouvorJA Desktop instalado (`~/.local/share/LouvorJA/config`), que já traz capas/imagens;
+2. o `data/database.db` já presente (`data/` copiado de outra máquina — não reimporta);
+3. senão, baixa `config/pt_database.db` do servidor oficial — funciona numa máquina zerada.
 
 Em seguida ele baixa a mídia (áudios e imagens) do mesmo servidor oficial que o app original usa.
 Para rodar essas etapas na mão, sem o `setup.sh`:
 
 ```bash
-# o banco (escolha uma origem):
-python scripts/sync_data.py --do-servidor       # direto do servidor, sem Desktop
-python scripts/sync_data.py                      # de um LouvorJA Desktop instalado
-python scripts/sync_data.py --source /caminho/config
+# o banco (encontra a origem sozinho; use as flags só para forçar):
+python scripts/sync_data.py                      # automático (Desktop > data/ > servidor)
+python scripts/sync_data.py --do-servidor        # força baixar do servidor
+python scripts/sync_data.py --source /caminho/config   # força uma pasta config/ do Desktop
 
 # a mídia:
 python scripts/download_media.py --dry-run       # quanto pesa (4.756 arquivos, ~15 GB)
@@ -66,7 +66,8 @@ máquina em vez de baixar tudo.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-python scripts/sync_data.py --do-servidor
+python scripts/sync_data.py            # encontra o banco sozinho
+python scripts/download_media.py       # baixa a mídia (~15 GB)
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 

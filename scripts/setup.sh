@@ -59,23 +59,12 @@ echo "==> Instalando dependências (.[$EXTRAS])"
 "$PY" -m pip install -e "$RAIZ[$EXTRAS]"
 
 if [[ $DADOS -eq 1 || $PACOTE -eq 1 ]]; then
-  # Pergunta ao próprio app onde ficam o banco de destino e a origem padrão, para não
-  # duplicar a lógica de caminhos aqui.
-  DEST_DB="$("$PY" -c 'from app.config import DB_PATH; print(DB_PATH)')"
-  SRC_DB="$("$PY" -c 'from app.config import DEFAULT_SOURCE_DIR; print(DEFAULT_SOURCE_DIR / "database.db")')"
-
+  # O sync_data.py acha a origem do banco sozinho (Desktop > data/ > servidor).
+  echo "==> Obtendo o banco de hinos"
   if [[ -n "$SOURCE" ]]; then
-    echo "==> Importando o banco de $SOURCE"
     "$PY" "$RAIZ/scripts/sync_data.py" --source "$SOURCE"
-  elif [[ -f "$SRC_DB" ]]; then
-    echo "==> Importando o banco do LouvorJA Desktop"
-    "$PY" "$RAIZ/scripts/sync_data.py"
-  elif [[ -f "$DEST_DB" ]]; then
-    echo "==> Banco já presente em $(dirname "$DEST_DB") — pulando a importação"
   else
-    # Sem Desktop e sem data/ copiado: baixa o banco do mesmo servidor das músicas.
-    echo "==> Nenhum banco local; baixando o banco do servidor oficial"
-    "$PY" "$RAIZ/scripts/sync_data.py" --do-servidor
+    "$PY" "$RAIZ/scripts/sync_data.py"
   fi
 fi
 

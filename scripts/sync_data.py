@@ -29,16 +29,17 @@ TABELAS_ESPERADAS = [
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Importa/atualiza os dados do LouvorJA Desktop para o LouvorJA Lite."
+        description="Importa/atualiza o banco de hinos do LouvorJA Lite. Sem argumentos, encontra "
+                    "a origem sozinho: LouvorJA Desktop instalado > data/ já presente > servidor.",
     )
     parser.add_argument(
-        "--source", type=Path, default=DEFAULT_SOURCE_DIR,
-        help="Pasta config/ de uma instalação existente do LouvorJA Desktop",
+        "--source", type=Path, default=None,
+        help="Força a origem: pasta config/ de uma instalação do LouvorJA Desktop",
     )
     parser.add_argument(
         "--do-servidor", action="store_true",
-        help="Baixa o banco do servidor oficial (não precisa do LouvorJA Desktop). As imagens "
-             "vêm depois com scripts/download_media.py.",
+        help="Força baixar o banco do servidor oficial (não precisa do LouvorJA Desktop). As "
+             "imagens vêm depois com scripts/download_media.py.",
     )
     parser.add_argument("--dest", type=Path, default=DATA_DIR, help="Pasta data/ do LouvorJA Lite")
     parser.add_argument(
@@ -176,18 +177,32 @@ def main():
     dest_db = args.dest / "database.db"
     print(f"Gravando em: {args.dest}")
 
-    if args.do_servidor:
+    # Resolve a origem do banco. --source e --do-servidor forçam; sem eles, decide sozinho:
+    # LouvorJA Desktop instalado > banco já em data/ (não reimporta) > servidor oficial.
+    source = args.source
+    do_servidor = args.do_servidor
+    if source is None and not do_servidor:
+        if (DEFAULT_SOURCE_DIR / "database.db").exists():
+            source = DEFAULT_SOURCE_DIR
+        elif dest_db.exists():
+            print(f"Banco já presente em {args.dest} — nada a importar.")
+            return
+        else:
+            print("Nenhum banco local (LouvorJA Desktop ou data/) — baixando do servidor.")
+            do_servidor = True
+
+    if do_servidor:
         info_banco = baixar_banco_do_servidor(dest_db)
         origem = "servidor"
         # As imagens (capas/imagens) chegam com scripts/download_media.py, junto das músicas.
         info_imagens = {"capas_copied": 0, "imagens_copied": 0, "skipped_unchanged": 0}
     else:
-        source_db = args.source / "database.db"
-        print(f"Lendo de: {args.source}")
+        source_db = source / "database.db"
+        print(f"Lendo de: {source}")
         info_banco = validar_e_copiar_banco(source_db, dest_db)
-        origem = str(args.source)
+        origem = str(source)
         info_imagens = sincronizar_imagens(
-            args.source, dest_db, args.dest / "capas", args.dest / "imagens", args.images
+            source, dest_db, args.dest / "capas", args.dest / "imagens", args.images
         )
 
     if info_banco["tables_missing"]:
