@@ -44,8 +44,10 @@ onde parou.
 ./scripts/setup.sh --pacote # monta dist/LouvorJA-Lite-<versão>/ (AppImage + data/) pro pendrive
 ```
 
-Passe `--source /caminho/config` para importar o banco de outra instalação do LouvorJA Desktop. À
-mão, os mesmos passos são:
+Passe `--source /caminho/config` para importar o banco de outra instalação do LouvorJA Desktop. O
+`--dados` importa do LouvorJA Desktop (`~/.local/share/LouvorJA/config`) quando ele existe; sem ele
+e sem `--source`, a importação é **pulada** se o `data/database.db` já estiver no lugar (o caso de
+copiar o `data/` de outra máquina). À mão, os mesmos passos são:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate

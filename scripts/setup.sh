@@ -59,11 +59,29 @@ echo "==> Instalando dependências (.[$EXTRAS])"
 "$PY" -m pip install -e "$RAIZ[$EXTRAS]"
 
 if [[ $DADOS -eq 1 || $PACOTE -eq 1 ]]; then
-  echo "==> Importando o banco do LouvorJA Desktop"
+  # Pergunta ao próprio app onde ficam o banco de destino e a origem padrão, para não
+  # duplicar a lógica de caminhos aqui.
+  DEST_DB="$("$PY" -c 'from app.config import DB_PATH; print(DB_PATH)')"
+  SRC_DB="$("$PY" -c 'from app.config import DEFAULT_SOURCE_DIR; print(DEFAULT_SOURCE_DIR / "database.db")')"
+
   if [[ -n "$SOURCE" ]]; then
+    echo "==> Importando o banco de $SOURCE"
     "$PY" "$RAIZ/scripts/sync_data.py" --source "$SOURCE"
-  else
+  elif [[ -f "$SRC_DB" ]]; then
+    echo "==> Importando o banco do LouvorJA Desktop"
     "$PY" "$RAIZ/scripts/sync_data.py"
+  elif [[ -f "$DEST_DB" ]]; then
+    echo "==> Banco já presente em $(dirname "$DEST_DB") — pulando a importação"
+  else
+    echo "ERRO: não encontrei o banco de hinos." >&2
+    echo "      Não há database.db em:" >&2
+    echo "        origem (LouvorJA Desktop): $SRC_DB" >&2
+    echo "        destino (data/):           $DEST_DB" >&2
+    echo "      Escolha uma opção:" >&2
+    echo "        - instale o LouvorJA Desktop nesta máquina e rode de novo; ou" >&2
+    echo "        - ./scripts/setup.sh --dados --source /caminho/da/config  (banco de outra máquina); ou" >&2
+    echo "        - copie um data/ pronto (com database.db) para $(dirname "$DEST_DB")." >&2
+    exit 1
   fi
 fi
 
