@@ -8,31 +8,52 @@ cheia para projeção, com a virada de slide sincronizada com a música. Web app
 Distribuível como um **AppImage** que roda direto do pendrive, com todas as músicas junto — sem
 precisar de internet na igreja.
 
-## Origem dos dados
+## Início rápido
 
-O banco de hinos (`database.db`) pode vir de duas origens. Sem o LouvorJA Desktop instalado, baixe
-direto do servidor oficial (o mesmo das músicas):
+Do zero até projetando, numa máquina com internet. O `scripts/setup.sh` cuida de cada etapa e é
+idempotente — se algo cair no meio, rode de novo que ele continua de onde parou.
 
 ```bash
-python scripts/sync_data.py --do-servidor       # baixa config/pt_database.db do servidor
+# 1. Cria o .venv e instala as dependências
+./scripts/setup.sh
+
+# 2. Baixa o banco de hinos e a mídia (~15 GB — retomável)
+./scripts/setup.sh --dados
+
+# 3. Sobe o servidor em http://127.0.0.1:8000
+./scripts/setup.sh --run
 ```
 
-Ou, a partir de uma instalação existente do LouvorJA Desktop (normalmente em
-`~/.local/share/LouvorJA/config/`), que também traz as capas/imagens já baixadas:
+Os passos combinam: `./scripts/setup.sh --dados --run` faz o 2 e o 3 de uma vez.
+
+Depois, abra `http://127.0.0.1:8000/controle` na tela do operador. Ao selecionar um hino e clicar
+em "Abrir Projeção", uma nova janela abre em `http://127.0.0.1:8000/projecao` — arraste para o
+segundo monitor/telão e pressione F11.
+
+Atalhos: `→`/espaço próximo slide, `←` anterior, `P` toca/pausa.
+
+## De onde vêm os dados
+
+O passo 2 (`--dados`) resolve o banco de hinos (`database.db`) sozinho, nesta ordem:
+
+1. `--source /caminho/config`, se você passar;
+2. um LouvorJA Desktop instalado (`~/.local/share/LouvorJA/config`), que já traz capas/imagens;
+3. o `data/database.db` já presente (`data/` copiado de outra máquina — não reimporta);
+4. senão, baixa `config/pt_database.db` do servidor oficial — funciona numa máquina zerada.
+
+Em seguida ele baixa a mídia (áudios e imagens) do mesmo servidor oficial que o app original usa.
+Para rodar essas etapas na mão, sem o `setup.sh`:
 
 ```bash
-python scripts/sync_data.py                     # usa o caminho padrão acima
-python scripts/sync_data.py --source /outro/caminho/config
-```
+# o banco (escolha uma origem):
+python scripts/sync_data.py --do-servidor       # direto do servidor, sem Desktop
+python scripts/sync_data.py                      # de um LouvorJA Desktop instalado
+python scripts/sync_data.py --source /caminho/config
 
-No modo `--do-servidor` as imagens vêm depois, junto das músicas, com `scripts/download_media.py`.
-
-Os áudios e imagens são baixados do servidor oficial do LouvorJA — o mesmo que o app original usa:
-
-```bash
-python scripts/download_media.py --dry-run      # quanto pesa (4.756 arquivos, ~15 GB)
-python scripts/download_media.py --album 712    # só o Hinário Adventista
-python scripts/download_media.py                # o catálogo inteiro
+# a mídia:
+python scripts/download_media.py --dry-run       # quanto pesa (4.756 arquivos, ~15 GB)
+python scripts/download_media.py --album 712     # só o Hinário Adventista
+python scripts/download_media.py                 # o catálogo inteiro
 ```
 
 O download é idempotente e retomável: se cair no meio, é só rodar de novo — ele continua de onde
@@ -40,39 +61,16 @@ parou, inclusive no meio de um arquivo. O layout em disco (`data/musicas/<Álbum
 espelha o do LouvorJA Desktop, então também dá para semear a pasta `data/` copiando de outra
 máquina em vez de baixar tudo.
 
-## Rodando
-
-O `scripts/setup.sh` cria o `.venv` (se ainda não existir), instala as dependências e — com as
-flags — importa o banco, baixa a mídia e monta o pacote. É idempotente: rodar de novo continua de
-onde parou.
-
-```bash
-./scripts/setup.sh          # cria .venv + instala as dependências
-./scripts/setup.sh --run    # e já sobe o servidor em http://127.0.0.1:8000
-./scripts/setup.sh --dados  # importa o banco (sync_data) e baixa a mídia (~15 GB)
-./scripts/setup.sh --pacote # monta dist/LouvorJA-Lite-<versão>/ (AppImage + data/) pro pendrive
-```
-
-Passe `--source /caminho/config` para importar o banco de outra instalação do LouvorJA Desktop. O
-`--dados` acha o banco sozinho: importa do LouvorJA Desktop (`~/.local/share/LouvorJA/config`) se
-existir; senão, pula caso o `data/database.db` já esteja no lugar (`data/` copiado de outra
-máquina); senão, **baixa o banco do servidor oficial** — ou seja, funciona numa máquina zerada, sem
-o Desktop. À mão, os mesmos passos são:
+## Sem o setup.sh (passos manuais)
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-python scripts/sync_data.py
+python scripts/sync_data.py --do-servidor
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Abra `http://127.0.0.1:8000/controle` na tela do operador. Ao selecionar um hino e clicar em
-"Abrir Projeção", uma nova janela abre em `http://127.0.0.1:8000/projecao` — arraste para o
-segundo monitor/telão e pressione F11.
-
-Atalhos: `→`/espaço próximo slide, `←` anterior, `P` toca/pausa.
-
-### Player e sincronia
+## Player e sincronia
 
 O áudio toca na janela de **controle** (a de projeção nunca recebe um gesto do usuário, e o
 navegador bloquearia o autoplay lá). Com "Seguir áudio" ligado, o slide vira sozinho no tempo
@@ -81,27 +79,32 @@ barra de progresso reposiciona a projeção junto. Desligue a opção para naveg
 
 Músicas sem áudio baixado continuam projetando normalmente; só o player fica escondido.
 
-## Gerando o executável
+## Gerando o pacote pro pendrive
+
+Um comando monta tudo — instala as dependências de build, baixa a mídia que faltar e empacota:
 
 ```bash
-./scripts/setup.sh --pacote                # tudo de uma vez: deps de build + mídia + pacote
+./scripts/setup.sh --pacote
+```
+
+O resultado fica em `dist/LouvorJA-Lite-<versão>/` (AppImage + `data/` + `LEIAME.txt`) — é essa
+pasta que vai inteira para o pendrive. Os passos individuais, se preferir rodá-los à mão:
+
+```bash
 ./scripts/build_appimage.sh                # só o dist/LouvorJA-Lite-x86_64.AppImage (~21 MB)
-python scripts/build_pacote.py --baixar    # AppImage + data/ prontos para o pendrive
+python scripts/build_pacote.py --baixar    # empacota o AppImage + data/ (baixando o que faltar)
 ```
 
 O `build_appimage.sh` usa PyInstaller, que fica no grupo opcional `build` do `pyproject.toml`
 (instale com `pip install -e ".[build]"`, ou deixe o `setup.sh --pacote` cuidar disso).
 
-O AppImage **não** contém as músicas — os ~15 GB ficam na pasta `data/` ao lado dele. O app
-procura os dados nesta ordem:
+O AppImage **não** contém as músicas — os ~15 GB ficam na pasta `data/` ao lado dele (o AppImage
+cru, sem dados, é o `dist/LouvorJA-Lite-x86_64.AppImage`). Em execução, o app procura os dados
+nesta ordem:
 
 1. `LOUVORJA_LITE_DATA_DIR`, se definida;
 2. `data/` ao lado do `.AppImage` (o caso do pendrive);
 3. `~/.local/share/louvorja-lite`.
-
-O `build_pacote.py` deixa tudo pronto em `dist/LouvorJA-Lite-<versão>/` (AppImage + `data/` +
-`LEIAME.txt`) — é essa pasta que vai inteira para o pendrive. O AppImage cru, sem os dados ao lado,
-fica em `dist/LouvorJA-Lite-x86_64.AppImage`.
 
 ## Testando o pendrive em outro computador
 
