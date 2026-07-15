@@ -10,13 +10,22 @@ precisar de internet na igreja.
 
 ## Origem dos dados
 
-O banco de hinos (`database.db`) vem de uma instalação existente do LouvorJA Desktop, normalmente
-em `~/.local/share/LouvorJA/config/`:
+O banco de hinos (`database.db`) pode vir de duas origens. Sem o LouvorJA Desktop instalado, baixe
+direto do servidor oficial (o mesmo das músicas):
+
+```bash
+python scripts/sync_data.py --do-servidor       # baixa config/pt_database.db do servidor
+```
+
+Ou, a partir de uma instalação existente do LouvorJA Desktop (normalmente em
+`~/.local/share/LouvorJA/config/`), que também traz as capas/imagens já baixadas:
 
 ```bash
 python scripts/sync_data.py                     # usa o caminho padrão acima
 python scripts/sync_data.py --source /outro/caminho/config
 ```
+
+No modo `--do-servidor` as imagens vêm depois, junto das músicas, com `scripts/download_media.py`.
 
 Os áudios e imagens são baixados do servidor oficial do LouvorJA — o mesmo que o app original usa:
 
@@ -45,9 +54,10 @@ onde parou.
 ```
 
 Passe `--source /caminho/config` para importar o banco de outra instalação do LouvorJA Desktop. O
-`--dados` importa do LouvorJA Desktop (`~/.local/share/LouvorJA/config`) quando ele existe; sem ele
-e sem `--source`, a importação é **pulada** se o `data/database.db` já estiver no lugar (o caso de
-copiar o `data/` de outra máquina). À mão, os mesmos passos são:
+`--dados` acha o banco sozinho: importa do LouvorJA Desktop (`~/.local/share/LouvorJA/config`) se
+existir; senão, pula caso o `data/database.db` já esteja no lugar (`data/` copiado de outra
+máquina); senão, **baixa o banco do servidor oficial** — ou seja, funciona numa máquina zerada, sem
+o Desktop. À mão, os mesmos passos são:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate

@@ -73,15 +73,9 @@ if [[ $DADOS -eq 1 || $PACOTE -eq 1 ]]; then
   elif [[ -f "$DEST_DB" ]]; then
     echo "==> Banco já presente em $(dirname "$DEST_DB") — pulando a importação"
   else
-    echo "ERRO: não encontrei o banco de hinos." >&2
-    echo "      Não há database.db em:" >&2
-    echo "        origem (LouvorJA Desktop): $SRC_DB" >&2
-    echo "        destino (data/):           $DEST_DB" >&2
-    echo "      Escolha uma opção:" >&2
-    echo "        - instale o LouvorJA Desktop nesta máquina e rode de novo; ou" >&2
-    echo "        - ./scripts/setup.sh --dados --source /caminho/da/config  (banco de outra máquina); ou" >&2
-    echo "        - copie um data/ pronto (com database.db) para $(dirname "$DEST_DB")." >&2
-    exit 1
+    # Sem Desktop e sem data/ copiado: baixa o banco do mesmo servidor das músicas.
+    echo "==> Nenhum banco local; baixando o banco do servidor oficial"
+    "$PY" "$RAIZ/scripts/sync_data.py" --do-servidor
   fi
 fi
 
