@@ -4,7 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.liturgia.models import OrigemHino
+from app.liturgia.models import OrigemHino, validar_url_video
 
 
 class HinoFixo(BaseModel):
@@ -33,16 +33,7 @@ class HinoFixo(BaseModel):
     @field_validator("url_video")
     @classmethod
     def _url_plausivel(cls, url: Optional[str]) -> Optional[str]:
-        if url is None:
-            return None
-        url = url.strip()
-        if not url:
-            return None
-        # O link só é aberto numa aba do navegador, então basta ser navegável. Não exigimos
-        # que seja do YouTube: um vídeo no Drive ou no Vimeo abre do mesmo jeito.
-        if not url.startswith(("http://", "https://")):
-            raise ValueError("O link precisa começar com http:// ou https://")
-        return url
+        return validar_url_video(url)
 
     @model_validator(mode="after")
     def _hino_ou_video(self) -> "HinoFixo":
