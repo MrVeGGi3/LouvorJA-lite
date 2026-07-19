@@ -35,6 +35,31 @@ html, body {
   font-display: block;
 }
 
+/* A letra é branca e vem por cima da imagem de fundo, o que só funciona enquanto o fundo é
+   escuro — o caso do hinário. As coletâneas quebram isso: o Adoradores 5 usa uma única imagem
+   para o álbum inteiro, e ela é uma tela quase lisa #F2F2F2. Daí a caixa: ela dá à letra um
+   fundo próprio, escuro, independente do que estiver atrás. Sobre fundo escuro quase não
+   aparece; sobre fundo claro é o que salva a leitura.
+
+   Ela abraça o texto (`fit-content`) em vez de atravessar a tela, então muda de largura a cada
+   slide — sem `transition`, porque animar essa mudança arrastaria a virada. Medidas em `vh`
+   pelo mesmo motivo que o `font-size` da letra (ver abaixo): é a altura da tela que faz a
+   projeção crescer junto com o telão. Em `em` não serviria — o `em` daqui vale 16px, e não os
+   14vh da letra, que é filha. */
+#bloco {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: fit-content;
+  max-width: 92vw;
+  padding: 2vh 3.5vh;
+  border-radius: 1vh;
+  /* 0,65 sobre o fundo mais claro que temos (o #F2F2F2 do Adoradores 5) resulta num cinza ~85:
+     7,6:1 com a letra branca e 4,3:1 com o dourado do título, que é o pior caso. Mais escuro que
+     isso vira uma laje preta sobre as fotos do hinário. */
+  background: rgba(0, 0, 0, 0.65);
+}
+
 /* Mesmo estilo do LouvorJA Desktop (fmMusica.dfm): Arial Narrow negrito, centralizada. Cor e
    tamanho vêm de cada slide (o título é dourado e maior que a letra), e o tamanho é uma
    porcentagem da ALTURA da tela — escalar pela altura é o que faz a letra crescer junto com o
@@ -49,9 +74,11 @@ html, body {
   text-align: center;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  max-width: 92vw;
-  /* O original não tem sombra — conta com fundos escuros. A sombra suave só protege a leitura
-     quando o fundo é uma foto clara, sem mudar o desenho da fonte. */
+  max-width: 100%; /* o limite de largura agora é o do #bloco */
+  /* O original não tem sombra — conta com fundos escuros. Quem garante a leitura sobre fundo
+     claro é a caixa, não esta sombra: ela é um brilho difuso, sem borda definida, e sozinha
+     sobre um fundo #F2F2F2 não produz contraste nenhum. Fica porque ainda ajuda nas bordas da
+     caixa, onde o texto chega perto do fundo de verdade. */
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
   transition: opacity 400ms ease;
 }
