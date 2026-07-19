@@ -1,4 +1,5 @@
 const telaEl = document.getElementById("tela");
+const blocoEl = document.getElementById("bloco");
 const letraEl = document.getElementById("letra");
 const letraAuxEl = document.getElementById("letra-aux");
 
@@ -23,6 +24,10 @@ function aplicarSlide(estado) {
   } else {
     letraAuxEl.style.display = "none";
   }
+
+  // Sem texto nenhum a caixa não tem o que proteger, e sobraria uma tarja escura vazia no meio
+  // da tela — é o estado inicial e o que fica depois do "parar".
+  blocoEl.style.display = slide.letra || slide.letra_aux ? "flex" : "none";
 }
 
 function aplicarEstado(estado) {
