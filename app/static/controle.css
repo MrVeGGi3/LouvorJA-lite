@@ -83,9 +83,19 @@ button:hover { background: #4468e8; }
   gap: 0.5rem;
   padding: 0.5rem 0.4rem;
   border-bottom: 1px solid #2f333c;
+  cursor: pointer;
+  /* Sem isto o item flex não encolhe abaixo do próprio conteúdo, e um link de vídeo comprido
+     estoura a linha, empurrando os botões para fora do painel. */
+  min-width: 0;
 }
 
-#resultados li:hover { background: #2c303a; cursor: pointer; }
+#resultados li:hover { background: #2c303a; }
+
+/* A linha da liturgia também é clicável (clicar mira o momento), então acompanha o realce e o
+   canto arredondado da linha dos fixos. */
+#itens-liturgia li { border-radius: 4px; }
+
+#itens-liturgia li:hover { background: #16181d; }
 
 .item-botoes { display: flex; gap: 0.25rem; }
 
@@ -171,13 +181,16 @@ button:hover { background: #4468e8; }
 #itens-fixos li:hover { background: #16181d; }
 
 /* O momento mirado: é nele que o "+" da busca encaixa o próximo hino. */
-#itens-fixos li.alvo {
+#itens-fixos li.alvo, #itens-liturgia li.alvo {
   background: #172335;
   box-shadow: inset 3px 0 0 #2f6fd0;
 }
 
-.nome-fixo {
-  flex: 0 0 11rem;
+/* O nome do momento: editável na linha, nos fixos e na liturgia da semana. Encolhe até 6rem
+   quando a linha aperta — o título do hino é a informação que não pode virar reticências. */
+.nome-momento {
+  flex: 0 1 11rem;
+  min-width: 6rem;
   background: #16181d;
   border: 1px solid #2a2d33;
   border-radius: 4px;
@@ -186,12 +199,12 @@ button:hover { background: #4468e8; }
   font-size: 0.88rem;
 }
 
-.nome-fixo:focus {
+.nome-momento:focus {
   outline: none;
   border-color: #2f6fd0;
 }
 
-.hino-fixo {
+.conteudo-item {
   flex: 1;
   /* Sem isto o item flex não encolhe abaixo do próprio conteúdo, e um link de vídeo comprido
      estoura a linha, empurrando os botões para fora do painel em vez de virar reticências. */
@@ -202,18 +215,18 @@ button:hover { background: #4468e8; }
   white-space: nowrap;
 }
 
-.hino-fixo.vazio {
+.conteudo-item.vazio {
   color: #6b7280;
   font-style: italic;
 }
 
 /* O vídeo mora no lugar do hino, mas se abre como link — daí o azul e o sublinhado no hover. */
-.hino-fixo.video {
+.conteudo-item.video {
   color: #7aa7e6;
   cursor: pointer;
 }
 
-.hino-fixo.video:hover { text-decoration: underline; }
+.conteudo-item.video:hover { text-decoration: underline; }
 
 .secundario {
   background: none;

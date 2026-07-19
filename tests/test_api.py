@@ -109,6 +109,68 @@ def test_adicionar_item_e_projetar():
     assert client.post("/api/projecao/navegar", json={"direcao": "prox"}).status_code == 400
 
 
+def test_adicionar_video_a_liturgia():
+    client.post("/api/liturgias", json={"dia": "terca", "titulo": "Culto"})
+    item = {
+        "ordem": 1, "tipo": "video", "titulo_exibicao": "",
+        "descricao": "Louvor especial", "url_video": "https://youtu.be/abc123",
+    }
+    resp = client.post("/api/liturgias/terca/itens", json=item)
+    assert resp.status_code == 200
+
+    salvo = resp.json()["itens"][0]
+    assert salvo["tipo"] == "video"
+    assert salvo["url_video"] == "https://youtu.be/abc123"
+    assert salvo["descricao"] == "Louvor especial"
+    assert salvo["ref_id"] is None
+
+
+def test_momento_sem_hino_recebe_e_devolve_o_hino():
+    """O momento nasce só com o nome, ganha um hino e volta a ser nota pelo "⌫"."""
+    client.post("/api/liturgias", json={"dia": "sabado", "titulo": "Culto"})
+    nota = {"ordem": 0, "tipo": "nota", "titulo_exibicao": "", "descricao": ""}
+    item = client.post("/api/liturgias/sabado/itens", json=nota).json()["itens"][0]
+    assert item["tipo"] == "nota"
+
+    url = f"/api/liturgias/sabado/itens/{item['id']}"
+    cheio = {**item, "tipo": "hino", "origem": "hinario", "ref_id": 1,
+             "titulo_exibicao": "1 - Hino de Teste Um", "descricao": "Ofertas"}
+    assert client.put(url, json=cheio).json()["itens"][0]["ref_id"] == 1
+
+    # Esvaziar mantém a descrição e o lugar na ordem — só o hino sai.
+    vazio = {**cheio, "tipo": "nota", "origem": None, "ref_id": None, "titulo_exibicao": ""}
+    voltou = client.put(url, json=vazio).json()["itens"][0]
+    assert voltou["tipo"] == "nota"
+    assert voltou["ref_id"] is None
+    assert voltou["descricao"] == "Ofertas"
+    assert voltou["ordem"] == 1
+
+
+def test_item_nao_aceita_hino_e_video_juntos():
+    client.post("/api/liturgias", json={"dia": "quinta", "titulo": "Culto"})
+    item = {
+        "ordem": 1, "tipo": "video", "ref_id": 1, "titulo_exibicao": "1 - Hino",
+        "url_video": "https://youtu.be/abc123",
+    }
+    assert client.post("/api/liturgias/quinta/itens", json=item).status_code == 422
+
+
+def test_editar_item_guarda_descricao():
+    client.post("/api/liturgias", json={"dia": "segunda", "titulo": "Culto"})
+    item = {"ordem": 1, "tipo": "hino", "origem": "hinario", "ref_id": 1,
+            "titulo_exibicao": "1 - Hino de Teste Um"}
+    item_id = client.post("/api/liturgias/segunda/itens", json=item).json()["itens"][0]["id"]
+
+    resp = client.put(
+        f"/api/liturgias/segunda/itens/{item_id}", json={**item, "descricao": "Doxologia"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["itens"][0]["descricao"] == "Doxologia"
+
+    # A descrição precisa sobreviver ao disco, não só à resposta.
+    assert client.get("/api/liturgias/segunda").json()["itens"][0]["descricao"] == "Doxologia"
+
+
 def test_reordenar_itens():
     client.post("/api/liturgias", json={"dia": "quarta", "titulo": "Culto"})
     item1 = {"ordem": 1, "tipo": "nota", "titulo_exibicao": "Item 1", "texto": "a"}
