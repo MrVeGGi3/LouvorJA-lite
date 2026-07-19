@@ -106,6 +106,18 @@ function renderResultados(lista) {
     texto.addEventListener("click", () => projetarItem(item));
     li.appendChild(texto);
 
+    const botoes = document.createElement("div");
+    botoes.className = "item-botoes";
+
+    // Projetar direto da busca já era possível clicando no título, mas o único sinal disso era
+    // um tooltip — o botão põe a ação à vista, com o mesmo ▶ das linhas da liturgia. Serve para
+    // o hino que não está em liturgia nenhuma e alguém pede na hora.
+    const btProjetar = document.createElement("button");
+    btProjetar.textContent = "▶";
+    btProjetar.title = "Projetar agora, sem pôr na liturgia";
+    btProjetar.addEventListener("click", () => projetarItem(item));
+    botoes.appendChild(btProjetar);
+
     const btAdicionar = document.createElement("button");
     if (destino) {
       // O momento recém-criado ainda não tem nome; sem ele o rótulo vira "+ em (sem nome)".
@@ -124,8 +136,9 @@ function renderResultados(lista) {
     btAdicionar.addEventListener("click", () =>
       abaAtiva === "fixos" ? encaixarEmFixo(item) : encaixarEmItem(item),
     );
-    li.appendChild(btAdicionar);
+    botoes.appendChild(btAdicionar);
 
+    li.appendChild(botoes);
     resultadosEl.appendChild(li);
   }
 }
