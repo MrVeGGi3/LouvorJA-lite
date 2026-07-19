@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.config import DATA_DIR, DB_PATH, PROJECT_ROOT  # noqa: E402
 from app.db.arquivos import arquivo_completo, caminho_local  # noqa: E402
 
-VERSAO = "0.1.1"
+VERSAO = "0.1.2"
 APPIMAGE = PROJECT_ROOT / "dist" / "LouvorJA-Lite-x86_64.AppImage"
 
 SQL_ESPERADOS = """
