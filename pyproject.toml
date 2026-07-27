@@ -1,6 +1,6 @@
 [project]
 name = "louvorja-lite"
-version = "0.1.2"
+version = "0.2.0"
 description = "Busca de hinos, liturgia semanal e modo de projeção, reaproveitando os dados do LouvorJA Desktop."
 requires-python = ">=3.11"
 dependencies = [
