@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Importa/atualiza o banco de hinos do LouvorJA Lite.
+
+A validação e o download do banco moram em `app/sync/catalogo.py` — de lá a tela de download do
+app usa o mesmo código. Aqui ficam a linha de comando e a cópia de imagens a partir de uma
+instalação do LouvorJA Desktop, que só faz sentido na máquina de quem tem o Desktop instalado.
+"""
+
 import argparse
 import json
 import shutil
@@ -8,23 +15,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.config import DATA_DIR, DEFAULT_SOURCE_DIR  # noqa: E402
-
-# Nome do banco no servidor oficial (mesmo host das músicas). O catálogo em espanhol existe como
-# es_database.db, mas o Lite só usa o português.
-BANCO_REMOTO = "config/pt_database.db"
-
-TABELAS_ESPERADAS = [
-    "musics",
-    "lyrics",
-    "files",
-    "albums",
-    "albums_musics",
-    "categories",
-    "categories_albums",
-]
+from app.sync.catalogo import (  # noqa: E402
+    BANCO_REMOTO,
+    ErroDeCatalogo,
+    baixar_banco_do_servidor,
+    validar_e_copiar_banco,
+)
 
 
 def parse_args():
@@ -48,50 +46,6 @@ def parse_args():
              "symlink=sem copiar (mesma máquina), none=pula imagens",
     )
     return parser.parse_args()
-
-
-def validar_e_copiar_banco(source_db: Path, dest_db: Path) -> dict:
-    if not source_db.exists():
-        raise SystemExit(f"database.db não encontrado em {source_db}")
-
-    dest_db.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest_db.with_suffix(".tmp")
-    shutil.copy2(source_db, tmp)
-
-    conn = sqlite3.connect(tmp)
-    try:
-        (resultado,) = conn.execute("PRAGMA integrity_check").fetchone()
-        if resultado != "ok":
-            tmp.unlink(missing_ok=True)
-            raise SystemExit(f"database.db copiado falhou na verificação de integridade: {resultado}")
-        tabelas = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    finally:
-        conn.close()
-
-    tmp.replace(dest_db)
-
-    faltando = [t for t in TABELAS_ESPERADAS if t not in tabelas]
-    return {"tables_found": sorted(tabelas), "tables_missing": faltando}
-
-
-def baixar_banco_do_servidor(dest_db: Path) -> dict:
-    """Baixa o banco do servidor oficial e o valida como o modo local faz.
-
-    Baixa para um arquivo temporário e delega a validação/promoção a validar_e_copiar_banco, então
-    uma queda no meio nunca substitui o banco bom por um truncado.
-    """
-    import louvorja_api  # importado aqui para não exigir rede quando se usa uma origem local
-
-    dest_db.parent.mkdir(parents=True, exist_ok=True)
-    baixado = dest_db.with_suffix(".download")
-    print(f"Baixando o banco do servidor ({BANCO_REMOTO}) ...")
-    conexao = louvorja_api.obter_conexao()
-    try:
-        louvorja_api.baixar(conexao, BANCO_REMOTO, baixado)
-        info = validar_e_copiar_banco(baixado, dest_db)
-    finally:
-        baixado.unlink(missing_ok=True)
-    return info
 
 
 SQL_IMAGENS_REFERENCIADAS = """
@@ -191,19 +145,23 @@ def main():
             print("Nenhum banco local (LouvorJA Desktop ou data/) — baixando do servidor.")
             do_servidor = True
 
-    if do_servidor:
-        info_banco = baixar_banco_do_servidor(dest_db)
-        origem = "servidor"
-        # As imagens (capas/imagens) chegam com scripts/download_media.py, junto das músicas.
-        info_imagens = {"capas_copied": 0, "imagens_copied": 0, "skipped_unchanged": 0}
-    else:
-        source_db = source / "database.db"
-        print(f"Lendo de: {source}")
-        info_banco = validar_e_copiar_banco(source_db, dest_db)
-        origem = str(source)
-        info_imagens = sincronizar_imagens(
-            source, dest_db, args.dest / "capas", args.dest / "imagens", args.images
-        )
+    try:
+        if do_servidor:
+            print(f"Baixando o banco do servidor ({BANCO_REMOTO}) ...")
+            info_banco = baixar_banco_do_servidor(dest_db)
+            origem = "servidor"
+            # As imagens (capas/imagens) chegam com scripts/download_media.py, junto das músicas.
+            info_imagens = {"capas_copied": 0, "imagens_copied": 0, "skipped_unchanged": 0}
+        else:
+            source_db = source / "database.db"
+            print(f"Lendo de: {source}")
+            info_banco = validar_e_copiar_banco(source_db, dest_db)
+            origem = str(source)
+            info_imagens = sincronizar_imagens(
+                source, dest_db, args.dest / "capas", args.dest / "imagens", args.images
+            )
+    except ErroDeCatalogo as erro:
+        raise SystemExit(str(erro)) from erro
 
     if info_banco["tables_missing"]:
         print(f"AVISO: tabelas esperadas não encontradas no banco: {info_banco['tables_missing']}")

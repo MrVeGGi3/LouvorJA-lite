@@ -41,12 +41,10 @@ cat > "$APPDIR/AppRun" <<'EOF'
 # $APPIMAGE aponta para o .AppImage de verdade (no pendrive); $APPDIR é o mount somente-leitura.
 AQUI="$(dirname "$(readlink -f "${APPIMAGE:-$0}")")"
 
+# Aviso, não erro: sem dados o app abre na tela de download e busca o catálogo sozinho. Abortar
+# aqui tornaria impossível usar o AppImage sem uma pasta 'data/' preparada de antemão.
 if [ ! -f "${LOUVORJA_LITE_DATA_DIR:-$AQUI/data}/database.db" ] && [ ! -f "$HOME/.local/share/louvorja-lite/database.db" ]; then
-  echo "LouvorJA Lite: não achei os dados." >&2
-  echo "Esperava a pasta 'data/' (com database.db) ao lado do AppImage, em:" >&2
-  echo "  $AQUI/data" >&2
-  echo "Ou aponte LOUVORJA_LITE_DATA_DIR para onde ela estiver." >&2
-  exit 1
+  echo "LouvorJA Lite: nenhum catálogo encontrado — a tela vai abrir no download dos hinos." >&2
 fi
 
 exec "$(dirname "$(readlink -f "$0")")/usr/bin/louvorja-lite" "$@"

@@ -13,12 +13,10 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.config import DB_PATH  # noqa: E402
 from app.db.arquivos import caminho_remoto  # noqa: E402
-
-import louvorja_api  # noqa: E402  isort:skip
+from app.sync import louvorja_api  # noqa: E402
 
 # Um mp3 comum, uma imagem e um nome com apóstrofo — o caractere que mais quebra URL.
 SQL_AMOSTRA = """

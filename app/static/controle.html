@@ -10,6 +10,7 @@
 <header>
   <h1>LouvorJA Lite</h1>
   <div class="semana">
+    <button id="abrir-atualizacao" type="button" class="secundario">⤓ Músicas</button>
     <button id="abrir-projecao" type="button">Abrir Projeção</button>
   </div>
 </header>
@@ -93,10 +94,49 @@
     </label>
 
     <span id="player-aviso" class="aviso" hidden></span>
+    <button id="player-baixar" type="button" class="secundario" hidden>Baixar agora</button>
   </div>
 
   <audio id="audio" preload="metadata"></audio>
 </footer>
+
+<dialog id="dialogo-atualizacao">
+  <div class="dialogo-cabecalho">
+    <h2 id="atualizacao-titulo">Músicas e imagens</h2>
+    <button id="atualizacao-fechar" type="button" class="secundario" title="Fechar">✕</button>
+  </div>
+
+  <!-- Primeira execução: escolher onde os hinos vão ficar antes de baixar qualquer coisa. -->
+  <section id="atualizacao-local" class="bloco" hidden>
+    <p class="ajuda">Onde guardar os hinos e as músicas?</p>
+    <div id="atualizacao-local-opcoes" class="opcoes"></div>
+  </section>
+
+  <section id="atualizacao-resumo" class="bloco">
+    <p id="atualizacao-catalogo" class="resumo-linha"></p>
+    <p id="atualizacao-destino" class="ajuda"></p>
+    <div class="dialogo-acoes">
+      <button id="atualizacao-banco" type="button">Atualizar catálogo</button>
+      <button id="atualizacao-tudo" type="button">Baixar tudo</button>
+    </div>
+  </section>
+
+  <section id="atualizacao-progresso" class="bloco progresso" hidden>
+    <div class="progresso-linha">
+      <progress id="atualizacao-barra" max="100" value="0"></progress>
+      <span id="atualizacao-percentual" class="tempo">0%</span>
+      <button id="atualizacao-parar" type="button" class="secundario">Parar</button>
+    </div>
+    <p id="atualizacao-detalhe" class="ajuda"></p>
+  </section>
+
+  <p id="atualizacao-mensagem" class="mensagem" hidden></p>
+
+  <section id="atualizacao-albuns-bloco" class="bloco">
+    <h3>Por álbum</h3>
+    <ul id="atualizacao-albuns"></ul>
+  </section>
+</dialog>
 
 <script src="/static/controle.js"></script>
 </body>

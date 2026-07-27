@@ -8,6 +8,28 @@ cheia para projeção, com a virada de slide sincronizada com a música. Web app
 Distribuível como um **AppImage** que roda direto do pendrive, com todas as músicas junto — sem
 precisar de internet na igreja.
 
+O AppImage **basta por si só**: aberto numa máquina zerada, ele pergunta onde guardar os dados e
+baixa o catálogo e as músicas pela própria tela, sem terminal e sem Python instalado. A pasta
+`data/` pronta continua sendo o caminho mais rápido (nada a baixar na hora), mas deixou de ser
+obrigatória.
+
+## Baixando os hinos pela interface
+
+O botão **"⤓ Músicas"**, no topo da tela de controle, abre o download:
+
+- **Baixar catálogo de hinos** — traz o `database.db` (~90 MB). É o primeiro passo numa instalação
+  nova; sem ele não há o que buscar nem projetar.
+- **Baixar tudo** — o catálogo inteiro de mídia (4.756 arquivos, ~14 GB).
+- **Por álbum** — são 75, cada um mostrando quanto já está em disco (`430/1965 · faltam 2,4 GB`) e
+  baixando sozinho. O Hinário Adventista (1.965 arquivos, 3,2 GB) fica fixado no topo.
+- **Baixar agora**, no player — quando um hino selecionado está sem o mp3, o aviso vira um botão
+  que puxa só aquele arquivo, em segundos.
+
+Um download por vez, com barra de progresso, velocidade e tempo restante. Dá para **parar** e
+retomar depois: um arquivo interrompido continua do byte exato onde parou, e o que já está íntegro
+em disco nunca é rebaixado. Na primeira execução o app pergunta onde guardar tudo — ao lado do
+programa (modo pendrive, leva os hinos de um computador para outro) ou na pasta pessoal.
+
 ## Início rápido
 
 Do zero até projetando, numa máquina com internet — um comando só monta o ambiente, obtém o banco,
@@ -42,7 +64,10 @@ O passo 2 (`--dados`) chama o `scripts/sync_data.py`, que **encontra o banco de 
 3. senão, baixa `config/pt_database.db` do servidor oficial — funciona numa máquina zerada.
 
 Em seguida ele baixa a mídia (áudios e imagens) do mesmo servidor oficial que o app original usa.
-Para rodar essas etapas na mão, sem o `setup.sh`:
+
+A lógica de download mora em `app/sync/` — é de lá que a tela do app a usa, e é por isso que ela
+entra no bundle do AppImage. Os scripts abaixo são a porta de linha de comando para o mesmo código,
+úteis para preparar um pendrive em lote. Para rodar essas etapas na mão, sem o `setup.sh`:
 
 ```bash
 # o banco (encontra a origem sozinho; use as flags só para forçar):
@@ -104,8 +129,12 @@ cru, sem dados, é o `dist/LouvorJA-Lite-x86_64.AppImage`). Em execução, o app
 nesta ordem:
 
 1. `LOUVORJA_LITE_DATA_DIR`, se definida;
-2. `data/` ao lado do `.AppImage` (o caso do pendrive);
-3. `~/.local/share/louvorja-lite`.
+2. a pasta escolhida na primeira execução, gravada em `~/.config/louvorja-lite/config.json`;
+3. `data/` ao lado do `.AppImage` (o caso do pendrive);
+4. `~/.local/share/louvorja-lite`.
+
+Rodando do código-fonte o passo 2 é ignorado e `data/` do repositório vale — assim um teste do
+AppImage não sequestra o ambiente de desenvolvimento.
 
 ## Testando o pendrive em outro computador
 
@@ -131,7 +160,8 @@ Os três tropeços mais comuns:
   faltar e dá um erro tipo `dlopen: libfuse.so.2`. Na hora, `--appimage-extract-and-run` resolve;
   de forma definitiva, `sudo apt install libfuse2` no computador de destino.
 - **Separar o `data/` do AppImage.** Sem a pasta `data/` ao lado (ou uma `LOUVORJA_LITE_DATA_DIR`
-  apontando para ela), o app não acha o banco de hinos nem os áudios.
+  apontando para ela), o app abre na tela de download em vez de encontrar os hinos — o que resolve
+  com internet, mas não no meio do culto.
 
 ## Testes
 
