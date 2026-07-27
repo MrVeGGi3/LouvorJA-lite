@@ -51,7 +51,8 @@ def test_audio_range_aberto_vai_ate_o_fim(mp3):
 def test_audio_nao_baixado_da_404_legivel():
     resp = client.get("/api/audio/900")
     assert resp.status_code == 404
-    assert "não foi baixado" in resp.json()["detail"]
+    # Estruturado, não texto solto: é pelo `codigo` que a tela decide oferecer o "Baixar agora".
+    assert "não foi baixado" in resp.json()["detail"]["mensagem"]
 
 
 def test_audio_de_id_inexistente():

@@ -7,62 +7,27 @@
 
 Idempotente: um arquivo já íntegro em disco não é rebaixado, então rodar de novo depois de uma
 queda continua de onde parou (inclusive no meio de um arquivo).
+
+A lógica de verdade mora em `app/sync/` — é de lá que a tela de download do app também a usa, e é
+por isso que ela entra no bundle do AppImage. Este script é a porta de linha de comando para ela.
 """
 
 import argparse
-import json
-import sqlite3
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.config import DATA_DIR, DB_PATH  # noqa: E402
-from app.db.arquivos import arquivo_completo, caminho_local, caminho_remoto  # noqa: E402
-
-import louvorja_api  # noqa: E402  isort:skip
-
-# Só os arquivos que alguma música, letra ou álbum de fato referencia. A tabela `files` tem mais
-# do que isso (o catálogo em espanhol, por exemplo), e o manifesto legado ARQUIVOS_SISTEMA tem
-# linhas duplicadas e com tamanho zero — nada disso entra por aqui.
-SQL_ARQUIVOS = """
-    SELECT f.id_file, f.type, f.dir, f.file_name, f.size
-    FROM files f
-    WHERE f.id_file IN (
-            SELECT id_file_music FROM musics WHERE id_file_music IS NOT NULL
-            UNION SELECT id_file_instrumental_music FROM musics WHERE id_file_instrumental_music IS NOT NULL
-            UNION SELECT id_file_image FROM musics WHERE id_file_image IS NOT NULL
-            UNION SELECT id_file_image FROM lyrics WHERE id_file_image IS NOT NULL
-            UNION SELECT id_file_image FROM albums WHERE id_file_image IS NOT NULL
-        )
-    ORDER BY f.type, f.dir, f.file_name
-"""
-
-# Restringe a um álbum: as duas faixas (cantada e playback) das músicas dele, mais as imagens.
-SQL_ARQUIVOS_DO_ALBUM = """
-    SELECT f.id_file, f.type, f.dir, f.file_name, f.size
-    FROM files f
-    WHERE f.id_file IN (
-            SELECT m.id_file_music FROM musics m
-              JOIN albums_musics am ON am.id_music = m.id_music
-             WHERE am.id_album = :album AND m.id_file_music IS NOT NULL
-            UNION SELECT m.id_file_instrumental_music FROM musics m
-              JOIN albums_musics am ON am.id_music = m.id_music
-             WHERE am.id_album = :album AND m.id_file_instrumental_music IS NOT NULL
-            UNION SELECT m.id_file_image FROM musics m
-              JOIN albums_musics am ON am.id_music = m.id_music
-             WHERE am.id_album = :album AND m.id_file_image IS NOT NULL
-            UNION SELECT l.id_file_image FROM lyrics l
-              JOIN albums_musics am ON am.id_music = l.id_music
-             WHERE am.id_album = :album AND l.id_file_image IS NOT NULL
-            UNION SELECT a.id_file_image FROM albums a
-             WHERE a.id_album = :album AND a.id_file_image IS NOT NULL
-        )
-    ORDER BY f.type, f.dir, f.file_name
-"""
+from app.db.arquivos import caminho_local, caminho_remoto  # noqa: E402
+from app.sync import louvorja_api  # noqa: E402
+from app.sync.midia import (  # noqa: E402
+    formata_bytes,
+    listar_arquivos,
+    pendentes,
+    salvar_estado,
+)
 
 
 def parse_args():
@@ -82,73 +47,30 @@ def parse_args():
     return parser.parse_args()
 
 
-def listar_arquivos(album: int | None, only: str) -> list[sqlite3.Row]:
-    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    try:
-        if album:
-            linhas = conn.execute(SQL_ARQUIVOS_DO_ALBUM, {"album": album}).fetchall()
-        else:
-            linhas = conn.execute(SQL_ARQUIVOS).fetchall()
-    finally:
-        conn.close()
-
-    if only == "music":
-        return [a for a in linhas if a["type"] == "music"]
-    if only == "image":
-        return [a for a in linhas if a["type"] != "music"]
-    return linhas
-
-
-def formata_bytes(n: int) -> str:
-    for unidade in ("B", "KB", "MB", "GB"):
-        if abs(n) < 1024 or unidade == "GB":
-            return f"{n:.1f} {unidade}" if unidade != "B" else f"{n} B"
-        n /= 1024
-    return f"{n:.1f} GB"
-
-
-def salvar_estado(dest: Path, arquivos: list, baixados: int, falhas: list) -> None:
-    estado = {
-        "atualizado_em": datetime.now(timezone.utc).isoformat(),
-        "arquivos_no_catalogo": len(arquivos),
-        "baixados_nesta_execucao": baixados,
-        "falhas": falhas,
-    }
-    (dest / "_download_state.json").write_text(
-        json.dumps(estado, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-
-
 def main() -> None:
     args = parse_args()
     dest = args.dest
 
-    arquivos = listar_arquivos(args.album, args.only)
+    arquivos = listar_arquivos(DB_PATH, args.album, args.only)
     if not arquivos:
         raise SystemExit("nenhum arquivo a baixar — rode scripts/sync_data.py antes")
 
-    pendentes = [
-        a for a in arquivos
-        if not arquivo_completo(
-            caminho_local(dest, a["type"], a["dir"], a["file_name"]), a["size"]
-        )
-    ]
+    faltando = pendentes(dest, arquivos)
     if args.limit:
-        pendentes = pendentes[: args.limit]
+        faltando = faltando[: args.limit]
 
-    total_bytes = sum(a["size"] for a in pendentes)
+    total_bytes = sum(a["size"] for a in faltando)
     print(f"catálogo: {len(arquivos)} arquivos ({formata_bytes(sum(a['size'] for a in arquivos))})")
-    print(f"faltando: {len(pendentes)} arquivos ({formata_bytes(total_bytes)})")
+    print(f"faltando: {len(faltando)} arquivos ({formata_bytes(total_bytes)})")
 
     if args.dry_run:
-        for a in pendentes[:10]:
+        for a in faltando[:10]:
             print(f"  {caminho_remoto(a['type'], a['dir'], a['file_name'])}")
-        if len(pendentes) > 10:
-            print(f"  ... e mais {len(pendentes) - 10}")
+        if len(faltando) > 10:
+            print(f"  ... e mais {len(faltando) - 10}")
         return
 
-    if not pendentes:
+    if not faltando:
         print("Nada a fazer — tudo já está em disco.")
         return
 
@@ -159,10 +81,10 @@ def main() -> None:
 
     with louvorja_api.Sessao() as sessao:
         print(f"conectado por {'FTP' if sessao.conexao.is_ftp else 'HTTPS'}\n")
-        for i, a in enumerate(pendentes, 1):
+        for i, a in enumerate(faltando, 1):
             remoto = caminho_remoto(a["type"], a["dir"], a["file_name"])
             destino = caminho_local(dest, a["type"], a["dir"], a["file_name"])
-            rotulo = f"[{i}/{len(pendentes)}]"
+            rotulo = f"[{i}/{len(faltando)}]"
             try:
                 bytes_baixados += sessao.baixar(remoto, destino, a["size"])
                 baixados += 1
@@ -179,10 +101,10 @@ def main() -> None:
                 print(f"{rotulo} FALHOU {remoto}: {erro}")
 
             if i % 25 == 0:
-                salvar_estado(dest, arquivos, baixados, falhas)
+                salvar_estado(dest, len(arquivos), baixados, falhas)
             time.sleep(args.pausa)
 
-    salvar_estado(dest, arquivos, baixados, falhas)
+    salvar_estado(dest, len(arquivos), baixados, falhas)
     print(f"\nOK — {baixados} arquivos, {formata_bytes(bytes_baixados)} em {(time.monotonic() - inicio) / 60:.1f} min")
     if falhas:
         print(f"{len(falhas)} falharam (registradas em _download_state.json) — rode de novo para retentar")

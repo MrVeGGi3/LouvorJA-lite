@@ -57,8 +57,18 @@ async function api(path, options = {}) {
     ...options,
   });
   if (!resp.ok) {
-    const detalhe = await resp.json().catch(() => ({}));
-    throw new Error(detalhe.detail || `Erro ${resp.status} em ${path}`);
+    const corpo = await resp.json().catch(() => ({}));
+    const detalhe = corpo.detail;
+    // Alguns erros vêm estruturados ({codigo, mensagem}) em vez de texto: é o que deixa a tela
+    // reagir ao "sem banco" abrindo o download, em vez de despejar um erro cru no operador.
+    const texto =
+      (detalhe && detalhe.mensagem) ||
+      (typeof detalhe === "string" ? detalhe : "") ||
+      `Erro ${resp.status} em ${path}`;
+    const erro = new Error(texto);
+    erro.status = resp.status;
+    erro.detalhe = detalhe;
+    throw erro;
   }
   return resp.status === 204 ? null : resp.json();
 }
@@ -385,6 +395,7 @@ async function projetarItem(item, itemIndex = null) {
 
   slidesAtuais = slides;
   slideProjetado = 0;
+  musicaProjetadaId = item.ref_id;
   prepararPlayer(audio);
 }
 
@@ -741,24 +752,29 @@ function prepararPlayer(audio) {
   faixas = audio || { cantado: null, playback: null };
 
   const disponivel = (f) => Boolean(f && f.disponivel);
+  // Faixas que o catálogo conhece mas que ainda não estão em disco — o que o "Baixar agora" busca.
+  const faltando = ["cantado", "playback"].filter((q) => faixas[q] && !disponivel(faixas[q]));
+
   faixaPlaybackBt.disabled = !disponivel(faixas.playback);
   faixaCantadoBt.disabled = !disponivel(faixas.cantado);
 
   if (!disponivel(faixas.cantado) && !disponivel(faixas.playback)) {
-    playerEl.hidden = true;
     audioEl.pause();
     audioEl.removeAttribute("src");
+    // Nenhuma faixa tocável: a barra só continua na tela se houver o que baixar.
+    playerEl.hidden = faltando.length === 0;
+    playBt.disabled = true;
+    mostrarAvisoDeFaixa(faltando);
     return;
   }
 
   playerEl.hidden = false;
+  playBt.disabled = false;
   faixaAtual = disponivel(faixas.cantado) ? "cantado" : "playback";
   // O clique no ▶ é o gesto que autoriza o autoplay: a faixa Cantado já começa a tocar.
   trocarFaixa(faixaAtual, { autoplay: true });
 
-  const semPlayback = faixas.playback && !faixas.playback.disponivel;
-  avisoEl.hidden = !semPlayback;
-  if (semPlayback) avisoEl.textContent = "playback não baixado";
+  mostrarAvisoDeFaixa(faltando);
 }
 
 function trocarFaixa(qual, { autoplay = true } = {}) {
@@ -856,11 +872,21 @@ document.getElementById("slide-proximo").addEventListener("click", () => navegar
 
 document.getElementById("abrir-projecao").addEventListener("click", garantirProjecao);
 
+// Buscar sem catálogo em disco não é erro do operador: a tela do download abre no lugar do estouro.
+async function buscarComRede() {
+  try {
+    await buscar();
+  } catch (erro) {
+    if (erro.detalhe && erro.detalhe.codigo === "sem_banco") abrirAtualizacao();
+    else throw erro;
+  }
+}
+
 buscaInput.addEventListener("input", () => {
   clearTimeout(buscaTimeout);
-  buscaTimeout = setTimeout(buscar, 300);
+  buscaTimeout = setTimeout(buscarComRede, 300);
 });
-buscaEdicao.addEventListener("change", buscar);
+buscaEdicao.addEventListener("change", buscarComRede);
 
 function renderDiasSemana() {
   diasSemanaEl.innerHTML = "";
@@ -884,12 +910,350 @@ function selecionarDia(dia) {
   carregarLiturgia();
 }
 
+// ---------------------------------------------------------------------------
+// Download dos hinos
+// ---------------------------------------------------------------------------
+
+const dialogoAtualizacao = document.getElementById("dialogo-atualizacao");
+const atualizacaoLocalEl = document.getElementById("atualizacao-local");
+const atualizacaoLocalOpcoesEl = document.getElementById("atualizacao-local-opcoes");
+const atualizacaoResumoEl = document.getElementById("atualizacao-resumo");
+const atualizacaoCatalogoEl = document.getElementById("atualizacao-catalogo");
+const atualizacaoDestinoEl = document.getElementById("atualizacao-destino");
+const atualizacaoProgressoEl = document.getElementById("atualizacao-progresso");
+const atualizacaoBarraEl = document.getElementById("atualizacao-barra");
+const atualizacaoPercentualEl = document.getElementById("atualizacao-percentual");
+const atualizacaoDetalheEl = document.getElementById("atualizacao-detalhe");
+const atualizacaoMensagemEl = document.getElementById("atualizacao-mensagem");
+const atualizacaoAlbunsEl = document.getElementById("atualizacao-albuns");
+const atualizacaoAlbunsBlocoEl = document.getElementById("atualizacao-albuns-bloco");
+const bancoBt = document.getElementById("atualizacao-banco");
+const tudoBt = document.getElementById("atualizacao-tudo");
+const pararBt = document.getElementById("atualizacao-parar");
+const baixarFaixaBt = document.getElementById("player-baixar");
+
+let streamAtualizacao = null;
+let pollAtualizacao = null;
+let ultimoJobRodando = false;
+let musicaProjetadaId = null;
+
+function formatarBytes(n) {
+  const unidades = ["B", "KB", "MB", "GB"];
+  let valor = Number(n) || 0;
+  for (const unidade of unidades) {
+    if (Math.abs(valor) < 1024 || unidade === "GB") {
+      return unidade === "B" ? `${Math.round(valor)} B` : `${valor.toFixed(1)} ${unidade}`;
+    }
+    valor /= 1024;
+  }
+  return `${valor.toFixed(1)} GB`;
+}
+
+async function abrirAtualizacao() {
+  if (!dialogoAtualizacao.open) dialogoAtualizacao.showModal();
+  await carregarStatusAtualizacao();
+  conectarProgresso();
+}
+
+function fecharAtualizacao() {
+  dialogoAtualizacao.close();
+}
+
+// O SSE para quando o diálogo fecha: o download continua no servidor, mas ninguém está olhando.
+dialogoAtualizacao.addEventListener("close", () => {
+  if (streamAtualizacao) {
+    streamAtualizacao.close();
+    streamAtualizacao = null;
+  }
+  clearInterval(pollAtualizacao);
+  pollAtualizacao = null;
+});
+
+async function carregarStatusAtualizacao() {
+  const status = await api("/api/atualizacao/status");
+  renderStatusAtualizacao(status);
+  return status;
+}
+
+function renderStatusAtualizacao(status) {
+  const cat = status.catalogo;
+  const semBanco = !status.banco.presente;
+
+  atualizacaoCatalogoEl.textContent = semBanco
+    ? "O catálogo de hinos ainda não foi baixado."
+    : `Catálogo: ${cat.total} arquivos · ${formatarBytes(cat.bytes_total)} — ` +
+      `em disco: ${cat.prontos} · ${formatarBytes(cat.bytes_prontos)}`;
+
+  atualizacaoDestinoEl.textContent =
+    `Pasta: ${status.data_dir} · ${formatarBytes(status.espaco_livre)} livres` +
+    (status.gravavel ? "" : " · SEM PERMISSÃO DE ESCRITA");
+
+  bancoBt.textContent = semBanco ? "Baixar catálogo de hinos" : "Atualizar catálogo";
+  tudoBt.hidden = semBanco;
+  atualizacaoAlbunsBlocoEl.hidden = semBanco || status.albuns.length === 0;
+
+  // Primeira execução: perguntar onde os hinos vão morar antes de baixar 15 GB para o lugar errado.
+  if (semBanco && !status.job.tarefa) {
+    carregarOpcoesDeLocal();
+  } else {
+    atualizacaoLocalEl.hidden = true;
+  }
+
+  renderAlbuns(status.albuns);
+  aplicarProgresso(status.job);
+}
+
+function renderAlbuns(albuns) {
+  atualizacaoAlbunsEl.innerHTML = "";
+
+  for (const album of albuns) {
+    const li = document.createElement("li");
+
+    const nome = document.createElement("span");
+    nome.className = "album-nome";
+    nome.textContent = album.titulo;
+
+    const contagem = document.createElement("span");
+    contagem.className = "album-contagem";
+    const completo = album.prontos >= album.total;
+    contagem.textContent = completo
+      ? `${album.total} arquivos · ${formatarBytes(album.bytes_total)}`
+      : `${album.prontos}/${album.total} · ` +
+        `faltam ${formatarBytes(album.bytes_total - album.bytes_prontos)}`;
+
+    li.append(nome, contagem);
+
+    if (completo) {
+      const ok = document.createElement("span");
+      ok.className = "album-ok";
+      ok.textContent = "✓";
+      ok.title = "Tudo em disco";
+      li.appendChild(ok);
+    } else {
+      const bt = document.createElement("button");
+      bt.type = "button";
+      bt.textContent = "Baixar";
+      bt.addEventListener("click", () =>
+        dispararDownload("/api/atualizacao/midia", { album: album.id_album, escopo: album.titulo })
+      );
+      li.appendChild(bt);
+    }
+
+    atualizacaoAlbunsEl.appendChild(li);
+  }
+}
+
+function aplicarProgresso(job) {
+  const rodando = job.estado === "rodando";
+  atualizacaoProgressoEl.hidden = !rodando;
+  bancoBt.disabled = rodando;
+  tudoBt.disabled = rodando;
+  atualizacaoAlbunsEl.querySelectorAll("button").forEach((bt) => (bt.disabled = rodando));
+
+  if (rodando) {
+    const fracao = job.total_bytes ? job.bytes_prontos / job.total_bytes : 0;
+    atualizacaoBarraEl.value = Math.round(fracao * 100);
+    atualizacaoPercentualEl.textContent = `${Math.round(fracao * 100)}%`;
+
+    const partes = [];
+    if (job.escopo) partes.push(job.escopo);
+    if (job.total_arquivos > 1) partes.push(`${job.arquivos_prontos}/${job.total_arquivos}`);
+    if (job.arquivo_atual) partes.push(job.arquivo_atual);
+    if (job.taxa_bps) partes.push(`${formatarBytes(job.taxa_bps)}/s`);
+    if (job.segundos_restantes) partes.push(`faltam ${formatarSegundos(job.segundos_restantes)}`);
+    if (job.falhas.length) partes.push(`${job.falhas.length} falharam`);
+    atualizacaoDetalheEl.textContent = partes.join(" · ");
+  }
+
+  const mensagem = job.mensagem || "";
+  atualizacaoMensagemEl.hidden = !mensagem;
+  atualizacaoMensagemEl.textContent = mensagem;
+  atualizacaoMensagemEl.classList.toggle("erro", job.estado === "erro");
+
+  // Terminou: as contagens por álbum e o estado do banco mudaram, então o resumo é refeito.
+  if (ultimoJobRodando && !rodando) carregarStatusAtualizacao();
+  ultimoJobRodando = rodando;
+}
+
+function conectarProgresso() {
+  if (streamAtualizacao) return;
+
+  const iniciarPolling = () => {
+    if (pollAtualizacao === null) {
+      pollAtualizacao = setInterval(() => {
+        api("/api/atualizacao/status").then(renderStatusAtualizacao).catch(() => {});
+      }, 1000);
+    }
+  };
+
+  try {
+    streamAtualizacao = new EventSource("/api/atualizacao/stream");
+  } catch {
+    iniciarPolling();
+    return;
+  }
+
+  streamAtualizacao.addEventListener("message", (evento) => {
+    clearInterval(pollAtualizacao);
+    pollAtualizacao = null;
+    aplicarProgresso(JSON.parse(evento.data));
+  });
+  streamAtualizacao.addEventListener("error", iniciarPolling);
+}
+
+async function dispararDownload(rota, corpo = null) {
+  try {
+    const job = await api(rota, {
+      method: "POST",
+      body: corpo ? JSON.stringify(corpo) : JSON.stringify({}),
+    });
+    ultimoJobRodando = true;
+    aplicarProgresso(job);
+    conectarProgresso();
+  } catch (erro) {
+    atualizacaoMensagemEl.hidden = false;
+    atualizacaoMensagemEl.textContent = erro.message;
+    atualizacaoMensagemEl.classList.add("erro");
+  }
+}
+
+// -- onde guardar os dados (primeira execução) ------------------------------
+
+async function carregarOpcoesDeLocal() {
+  const local = await api("/api/atualizacao/local");
+  atualizacaoLocalOpcoesEl.innerHTML = "";
+
+  // Fixado por variável de ambiente: quem definiu já sabe o que quer, não há o que perguntar.
+  if (local.fixado_por_variavel || local.opcoes.length < 2) {
+    atualizacaoLocalEl.hidden = true;
+    return;
+  }
+  atualizacaoLocalEl.hidden = false;
+
+  for (const opcao of local.opcoes) {
+    const bt = document.createElement("button");
+    bt.type = "button";
+    bt.className = "opcao" + (opcao.caminho === local.atual ? " ativa" : "");
+    bt.disabled = !opcao.gravavel;
+
+    const titulo = document.createElement("strong");
+    titulo.textContent = opcao.rotulo;
+    const caminho = document.createElement("span");
+    caminho.className = "opcao-caminho";
+    caminho.textContent = opcao.caminho;
+    const ajuda = document.createElement("span");
+    ajuda.className = "opcao-ajuda";
+    ajuda.textContent = opcao.gravavel
+      ? `${opcao.ajuda} ${formatarBytes(opcao.espaco_livre)} livres.`
+      : "Sem permissão de escrita aqui.";
+
+    bt.append(titulo, caminho, ajuda);
+    bt.addEventListener("click", () => escolherLocal(opcao.caminho));
+    atualizacaoLocalOpcoesEl.appendChild(bt);
+  }
+}
+
+async function escolherLocal(caminho) {
+  const resposta = await api("/api/atualizacao/local", {
+    method: "POST",
+    body: JSON.stringify({ caminho }),
+  });
+
+  if (!resposta.reiniciar) {
+    await carregarStatusAtualizacao();
+    return;
+  }
+
+  // O servidor vai se relançar na mesma porta para adotar a pasta nova. Esperar ele voltar e
+  // recarregar é mais simples — e menos frágil — do que trocar DATA_DIR a quente.
+  atualizacaoMensagemEl.hidden = false;
+  atualizacaoMensagemEl.classList.remove("erro");
+  atualizacaoMensagemEl.textContent = "Reabrindo com a pasta nova…";
+  aguardarServidor();
+}
+
+function aguardarServidor() {
+  const tentar = () =>
+    fetch("/api/atualizacao/status")
+      .then((resp) => {
+        if (resp.ok) window.location.reload();
+        else setTimeout(tentar, 500);
+      })
+      .catch(() => setTimeout(tentar, 500));
+  setTimeout(tentar, 1500);
+}
+
+// -- baixar a faixa que falta, direto do player -----------------------------
+
+function mostrarAvisoDeFaixa(faltando) {
+  const vazio = faltando.length === 0;
+  avisoEl.hidden = vazio;
+  baixarFaixaBt.hidden = vazio;
+  if (vazio) return;
+
+  avisoEl.textContent =
+    faltando.length === 2 ? "áudio não baixado" : `${faltando[0]} não baixado`;
+  baixarFaixaBt.disabled = false;
+  baixarFaixaBt.textContent = "Baixar agora";
+}
+
+async function baixarFaixasFaltando() {
+  const faltando = ["cantado", "playback"].filter((q) => faixas[q] && !faixas[q].disponivel);
+  if (!faltando.length) return;
+
+  baixarFaixaBt.disabled = true;
+  baixarFaixaBt.textContent = "Baixando…";
+  try {
+    for (const qual of faltando) {
+      await api(`/api/atualizacao/arquivo/${faixas[qual].id_file}`, { method: "POST" });
+      await aguardarJob();
+    }
+    // Refaz o player com o que agora está em disco — sem recarregar a página nem perder a projeção.
+    if (musicaProjetadaId !== null) {
+      prepararPlayer(await api(`/api/musicas/${musicaProjetadaId}/audio`));
+    }
+  } catch (erro) {
+    avisoEl.textContent = erro.message;
+    baixarFaixaBt.disabled = false;
+    baixarFaixaBt.textContent = "Tentar de novo";
+  }
+}
+
+async function aguardarJob() {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 500));
+    const status = await api("/api/atualizacao/status");
+    if (status.job.estado !== "rodando") {
+      if (status.job.estado === "erro") throw new Error(status.job.mensagem);
+      return status.job;
+    }
+  }
+}
+
+document.getElementById("abrir-atualizacao").addEventListener("click", abrirAtualizacao);
+document.getElementById("atualizacao-fechar").addEventListener("click", fecharAtualizacao);
+bancoBt.addEventListener("click", () => dispararDownload("/api/atualizacao/banco"));
+tudoBt.addEventListener("click", () =>
+  dispararDownload("/api/atualizacao/midia", { escopo: "catálogo inteiro" })
+);
+pararBt.addEventListener("click", () => api("/api/atualizacao/cancelar", { method: "POST" }));
+baixarFaixaBt.addEventListener("click", baixarFaixasFaltando);
+
 diaAtual = diaHojeSlug();
 renderDiasSemana();
 carregarLiturgia();
 carregarFixos();
 
+// Sem catálogo em disco não há o que buscar nem o que projetar: a tela abre direto no download.
+api("/api/atualizacao/status")
+  .then((status) => {
+    if (!status.banco.presente) abrirAtualizacao();
+  })
+  .catch(() => {});
+
 document.addEventListener("keydown", (evento) => {
+  // Com o diálogo aberto, espaço e setas são dele — virar slide por baixo confundiria o operador.
+  if (dialogoAtualizacao.open) return;
   if (evento.target.tagName === "INPUT" || evento.target.tagName === "SELECT") return;
   if (evento.key === "ArrowRight" || evento.key === " ") {
     evento.preventDefault();

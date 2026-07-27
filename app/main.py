@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import albuns, fixos, hinario, liturgia, media, musicas, projecao
+from app.api import albuns, atualizacao, fixos, hinario, liturgia, media, musicas, projecao
 from app.config import DATA_DIR, resource_path
 
 # Congelado, o static/ vive dentro do bundle (sys._MEIPASS), não ao lado do .py.
@@ -17,6 +17,7 @@ app.include_router(liturgia.router)
 app.include_router(fixos.router)
 app.include_router(projecao.router)
 app.include_router(media.router)
+app.include_router(atualizacao.router)
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/data", StaticFiles(directory=DATA_DIR, check_dir=False), name="data")

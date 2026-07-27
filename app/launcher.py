@@ -1,8 +1,8 @@
 """Ponto de entrada do executável: sobe o servidor local e abre o navegador na tela de controle."""
 
+import os
 import shutil
 import socket
-import sys
 import threading
 import time
 import webbrowser
@@ -80,16 +80,17 @@ def abrir_navegador(url: str) -> None:
 
 
 def main() -> None:
+    # Sem banco não é motivo para desistir: o app abre na tela de download e busca o catálogo
+    # sozinho. É o que faz o AppImage bastar por si só, sem pasta `data/` preparada antes.
     if not DB_PATH.exists():
-        print(f"database.db não encontrado em {DB_PATH}.", file=sys.stderr)
-        print(
-            "Coloque a pasta 'data/' ao lado do executável, ou aponte a variável "
-            "LOUVORJA_LITE_DATA_DIR para ela.",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
+        print(f"Primeira execução — nenhum catálogo em {DATA_DIR}.", flush=True)
+        print("A tela vai abrir direto no download dos hinos.", flush=True)
 
-    porta = porta_livre()
+    # O processo se relança ao trocar a pasta de dados (app/api/atualizacao.py). Voltar na mesma
+    # porta mantém válida a aba aberta e a janela de projeção que já está no telão.
+    preferida = int(os.environ.get("LOUVORJA_LITE_PORT") or 0)
+    porta = preferida if preferida and _livre(preferida) else porta_livre()
+    os.environ["LOUVORJA_LITE_PORT"] = str(porta)
     url = f"http://{HOST}:{porta}/controle"
 
     # flush explícito: congelado e com a saída redirecionada, o buffer do stdout só seria

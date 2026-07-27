@@ -32,10 +32,15 @@ def _resolver(conn: sqlite3.Connection, id_file: int, tipos: tuple[str, ...]) ->
         raise HTTPException(status_code=404, detail="Arquivo fora do diretório de dados")
 
     if not caminho.exists():
+        # O código estruturado é o que deixa a tela oferecer o botão "Baixar agora" em vez de
+        # mostrar um erro cru.
         raise HTTPException(
             status_code=404,
-            detail=f"'{arquivo['file_name']}' ainda não foi baixado. "
-                   "Rode scripts/download_media.py.",
+            detail={
+                "codigo": "nao_baixado",
+                "id_file": id_file,
+                "mensagem": f"'{arquivo['file_name']}' ainda não foi baixado.",
+            },
         )
     return caminho
 
