@@ -61,7 +61,9 @@ remotos de apresentação mandam), `F` entra/sai de tela cheia. Só no controle:
 O passo 2 (`--dados`) chama o `scripts/sync_data.py`, que **encontra o banco de hinos
 (`database.db`) sozinho**, nesta ordem:
 
-1. um LouvorJA Desktop instalado (`~/.local/share/LouvorJA/config`), que já traz capas/imagens;
+1. um LouvorJA Desktop instalado (`~/.local/share/LouvorJA/config`), que **pode** já trazer
+   capas/imagens — mas um Desktop que nunca baixou mídia guarda ali só o `database.db`, e aí as
+   imagens vêm do servidor como qualquer outra mídia (veja abaixo);
 2. o `data/database.db` já presente (`data/` copiado de outra máquina — não reimporta);
 3. senão, baixa `config/pt_database.db` do servidor oficial — funciona numa máquina zerada.
 
@@ -79,9 +81,15 @@ python scripts/sync_data.py --source /caminho/config   # força uma pasta config
 
 # a mídia:
 python scripts/download_media.py --dry-run       # quanto pesa (4.756 arquivos, ~15 GB)
+python scripts/download_media.py --only image    # só os fundos dos slides (1.265 arquivos, 0,4 GB)
 python scripts/download_media.py --album 712     # só o Hinário Adventista
 python scripts/download_media.py                 # o catálogo inteiro
 ```
+
+O `--only image` merece atenção porque é barato e muda a cara da projeção: sem as imagens o slide
+cai no fundo preto com a letra por cima (o comportamento de reserva, não um defeito), e são só
+0,4 GB dos ~15 GB do catálogo. O "Baixar agora" do player traz **apenas o mp3** do hino
+selecionado — se os fundos não aparecem mesmo com a música tocando, é esse o passo que falta.
 
 O download é idempotente e retomável: se cair no meio, é só rodar de novo — ele continua de onde
 parou, inclusive no meio de um arquivo. O layout em disco (`data/musicas/<Álbum>/<Nome>.mp3`)
