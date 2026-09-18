@@ -279,25 +279,57 @@ button:hover { background: #4468e8; }
   flex-shrink: 0;
 }
 
-.faixas { display: flex; flex-shrink: 0; }
+.faixas,
+.modos { display: flex; flex-shrink: 0; }
 
-.faixas .faixa {
+.faixas .faixa,
+.modos .modo {
   border-radius: 0;
   font-size: 0.82rem;
   padding: 0.35rem 0.7rem;
 }
 
-.faixas .faixa:first-child { border-radius: 4px 0 0 4px; }
-.faixas .faixa:last-child { border-radius: 0 4px 4px 0; }
+.faixas .faixa:first-child,
+.modos .modo:first-child { border-radius: 4px 0 0 4px; }
+.faixas .faixa:last-child,
+.modos .modo:last-child { border-radius: 0 4px 4px 0; }
 
-.faixas .faixa.ativa {
+.faixas .faixa.ativa,
+.modos .modo.ativa {
   background: #2f6fd0;
   color: #fff;
 }
 
-.faixas .faixa:disabled {
+.faixas .faixa:disabled,
+.modos .modo:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Cantado/Playback são duas faixas sempre válidas, por isso as duas ficam azuis. No modo de
+   projeção a escolha muda o culto inteiro (com som ou mudo), então o lado desligado fica apagado
+   para não restar dúvida de qual está valendo. */
+.modos .modo {
+  background: #22252b;
+  border-color: #3a3f47;
+  color: #8b93a1;
+}
+
+.modos .modo:hover { background: #2b2f36; color: #d5dae2; }
+
+.modos .modo.ativa {
+  background: #2f6fd0;
+  border-color: #2f6fd0;
+  color: #fff;
+}
+
+#slide-blackout { font-size: 0.8rem; padding: 0.35rem 0.6rem; }
+
+#slide-blackout.ativa {
+  background: #2f6fd0;
+  border-style: solid;
+  border-color: #2f6fd0;
+  color: #fff;
 }
 
 #player-progresso { flex: 1; min-width: 8rem; }
@@ -317,16 +349,6 @@ button:hover { background: #4468e8; }
 }
 
 .player .volume input { width: 6rem; }
-
-.player .seguir {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: #aab;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 
 .player .aviso {
   font-size: 0.78rem;

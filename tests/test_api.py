@@ -109,6 +109,31 @@ def test_adicionar_item_e_projetar():
     assert client.post("/api/projecao/navegar", json={"direcao": "prox"}).status_code == 400
 
 
+def test_blackout_escurece_sem_perder_o_slide():
+    slides = client.get("/api/musicas/1/slides").json()
+    client.post(
+        "/api/projecao/estado",
+        json={"titulo_item": "1 - Hino de Teste Um", "slides": slides, "slide_index": 1},
+    )
+
+    # Sem corpo (ou sem "ligado") alterna — é o que a tecla B manda das duas janelas.
+    estado = client.post("/api/projecao/blackout").json()
+    assert estado["blackout"] is True
+    # O hino continua carregado por baixo: escurecer não é o mesmo que parar.
+    assert estado["slide_index"] == 1
+    assert estado["total_slides"] == 3
+
+    assert client.post("/api/projecao/blackout").json()["blackout"] is False
+    assert client.post("/api/projecao/blackout", json={"ligado": True}).json()["blackout"] is True
+    assert client.get("/api/projecao/estado").json()["blackout"] is True
+
+    # Projetar o próximo hino devolve a letra sozinho.
+    estado = client.post(
+        "/api/projecao/estado", json={"slides": slides, "slide_index": 0}
+    ).json()
+    assert estado["blackout"] is False
+
+
 def test_adicionar_video_a_liturgia():
     client.post("/api/liturgias", json={"dia": "terca", "titulo": "Culto"})
     item = {

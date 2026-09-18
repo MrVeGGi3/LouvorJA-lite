@@ -52,14 +52,18 @@ Depois, abra `http://127.0.0.1:8000/controle` na tela do operador. Ao selecionar
 em "Abrir Projeção", uma nova janela abre em `http://127.0.0.1:8000/projecao` — arraste para o
 segundo monitor/telão e pressione F11.
 
-Atalhos: `→`/espaço próximo slide, `←` anterior, `P` toca/pausa.
+Atalhos (valem nas **duas** janelas, controle e projeção): `→`/espaço próximo slide, `←`
+anterior, `B` escurece a tela sem perder o hino. Só na projeção: `PgDn`/`PgUp` (o que os controles
+remotos de apresentação mandam), `F` entra/sai de tela cheia. Só no controle: `P` toca/pausa.
 
 ## De onde vêm os dados
 
 O passo 2 (`--dados`) chama o `scripts/sync_data.py`, que **encontra o banco de hinos
 (`database.db`) sozinho**, nesta ordem:
 
-1. um LouvorJA Desktop instalado (`~/.local/share/LouvorJA/config`), que já traz capas/imagens;
+1. um LouvorJA Desktop instalado (`~/.local/share/LouvorJA/config`), que **pode** já trazer
+   capas/imagens — mas um Desktop que nunca baixou mídia guarda ali só o `database.db`, e aí as
+   imagens vêm do servidor como qualquer outra mídia (veja abaixo);
 2. o `data/database.db` já presente (`data/` copiado de outra máquina — não reimporta);
 3. senão, baixa `config/pt_database.db` do servidor oficial — funciona numa máquina zerada.
 
@@ -77,9 +81,15 @@ python scripts/sync_data.py --source /caminho/config   # força uma pasta config
 
 # a mídia:
 python scripts/download_media.py --dry-run       # quanto pesa (4.756 arquivos, ~15 GB)
+python scripts/download_media.py --only image    # só os fundos dos slides (1.265 arquivos, 0,4 GB)
 python scripts/download_media.py --album 712     # só o Hinário Adventista
 python scripts/download_media.py                 # o catálogo inteiro
 ```
+
+O `--only image` merece atenção porque é barato e muda a cara da projeção: sem as imagens o slide
+cai no fundo preto com a letra por cima (o comportamento de reserva, não um defeito), e são só
+0,4 GB dos ~15 GB do catálogo. O "Baixar agora" do player traz **apenas o mp3** do hino
+selecionado — se os fundos não aparecem mesmo com a música tocando, é esse o passo que falta.
 
 O download é idempotente e retomável: se cair no meio, é só rodar de novo — ele continua de onde
 parou, inclusive no meio de um arquivo. O layout em disco (`data/musicas/<Álbum>/<Nome>.mp3`)
@@ -98,10 +108,19 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 ## Player e sincronia
 
-O áudio toca na janela de **controle** (a de projeção nunca recebe um gesto do usuário, e o
-navegador bloquearia o autoplay lá). Com "Seguir áudio" ligado, o slide vira sozinho no tempo
-gravado no banco (`lyrics.time` para o cantado, `instrumental_time` para o playback) — arrastar a
-barra de progresso reposiciona a projeção junto. Desligue a opção para navegar na mão.
+A barra de baixo tem dois modos, e a escolha fica guardada no navegador — vale para os hinos
+seguintes e para a próxima vez que o app abrir:
+
+- **♪ Seguir áudio** — o áudio toca na janela de **controle** (a de projeção nunca recebe um gesto
+  do usuário, e o navegador bloquearia o autoplay lá) e o slide vira sozinho no tempo gravado no
+  banco (`lyrics.time` para o cantado, `instrumental_time` para o playback). Arrastar a barra de
+  progresso reposiciona a projeção junto.
+- **Só slides** — para o louvor ao vivo, com a banda ou a congregação cantando: projetar um hino
+  não toca nada, e a virada é toda na mão. O player continua na tela, então dá para dar ▶ no meio
+  se precisar do som mesmo assim.
+
+Trocar de modo no meio do hino não assusta: entrar em "Só slides" cala a música onde ela está, e
+voltar para "Seguir áudio" não sai tocando sozinho — o ▶ é que retoma.
 
 Músicas sem áudio baixado continuam projetando normalmente; só o player fica escondido.
 
@@ -174,8 +193,11 @@ LOUVORJA_REAL_DB=~/.local/share/LouvorJA/config/database.db pytest tests/test_sc
 
 ## Limitações conhecidas
 
-- Nenhuma detecção automática de monitor — a janela de projeção precisa ser arrastada
-  manualmente para a tela correta.
+- Com a tela **estendida** a janela de projeção vai sozinha para o telão (Window Management API,
+  só no Chromium e com a permissão concedida); fora disso — outro navegador, permissão negada ou
+  tela **espelhada**, onde não há para onde mover — ela nasce como janela normal, e é o `F`/duplo
+  clique que a põe em tela cheia. Espelhado, a projeção cobre o controle e fica com o foco do
+  teclado: é para isso que as teclas de virar slide funcionam também na janela de projeção.
 - Liturgias antigas (`liturgia.ja` do LouvorJA Desktop) não são migradas — o formato aqui é novo
   (JSON), começando do zero.
 - O banco não guarda mais cor nem tamanho de letra. A projeção reproduz o estilo do LouvorJA

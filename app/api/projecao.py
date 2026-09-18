@@ -1,5 +1,5 @@
 import asyncio
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -19,6 +19,11 @@ class NavegarRequest(BaseModel):
 
 class SlideRequest(BaseModel):
     slide_index: int
+
+
+class BlackoutRequest(BaseModel):
+    # Sem corpo (ou sem "ligado"), alterna — é o que a tecla B manda das duas janelas.
+    ligado: Optional[bool] = None
 
 
 @router.get("/estado")
@@ -53,6 +58,19 @@ def ir_para_slide(req: SlideRequest):
     if not (0 <= req.slide_index < max(atual.total_slides, 1)):
         raise HTTPException(status_code=400, detail="Fora do intervalo de slides")
     atual.slide_index = req.slide_index
+    salvar_estado(atual)
+    return atual.model_dump(mode="json")
+
+
+@router.post("/blackout")
+def blackout(req: BlackoutRequest | None = None):
+    """Liga/desliga a tela preta, mantendo o hino e o slide carregados.
+
+    Fica no estado compartilhado para que as duas janelas concordem: a projeção escurece pela
+    tecla B e a tela de controle mostra o mesmo no botão.
+    """
+    atual = carregar_estado()
+    atual.blackout = (not atual.blackout) if req is None or req.ligado is None else req.ligado
     salvar_estado(atual)
     return atual.model_dump(mode="json")
 

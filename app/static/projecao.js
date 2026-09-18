@@ -8,6 +8,15 @@ let ultimaAtualizacao = null;
 function aplicarSlide(estado) {
   const slide = estado.slide || {};
 
+  // Tela preta sem descarregar o hino: com a tela espelhada, minimizar a projeção jogaria a área
+  // de trabalho no telão, então escurecer é o jeito de sair da letra entre um momento e outro.
+  if (estado.blackout) {
+    telaEl.style.backgroundColor = "#000000";
+    telaEl.style.backgroundImage = "none";
+    blocoEl.style.display = "none";
+    return;
+  }
+
   telaEl.style.backgroundColor = slide.cor_fundo || "#000000";
   telaEl.style.backgroundImage = slide.imagem_fundo ? `url("${slide.imagem_fundo}")` : "none";
 
@@ -68,8 +77,45 @@ function conectarStream() {
   });
 }
 
+// Virar o slide daqui é o que faz o modo manual funcionar com a tela espelhada: a projeção cobre
+// a tela de controle e fica com o foco do teclado, e trazer o controle de volta jogaria a mesa do
+// operador no telão. As teclas são as mesmas do controle, mais as que os controles remotos de
+// apresentação mandam (PageUp/PageDown, B para escurecer).
+const PROXIMO = ["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"];
+const ANTERIOR = ["ArrowLeft", "ArrowUp", "PageUp", "Backspace"];
+
+async function postar(caminho, corpo = "{}") {
+  try {
+    await fetch(caminho, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: corpo,
+    });
+  } catch {
+    // Passar do último slide responde 400 — é o fim da música, não um erro do operador.
+  }
+}
+
+function navegar(direcao) {
+  postar("/api/projecao/navegar", JSON.stringify({ direcao }));
+}
+
 document.addEventListener("keydown", (evento) => {
-  if (evento.key === "Escape" && document.fullscreenElement) {
+  if (PROXIMO.includes(evento.key)) {
+    evento.preventDefault();
+    navegar("prox");
+  } else if (ANTERIOR.includes(evento.key)) {
+    evento.preventDefault();
+    navegar("ant");
+  } else if (evento.key === "b" || evento.key === "B" || evento.key === ".") {
+    evento.preventDefault();
+    postar("/api/projecao/blackout");
+  } else if (evento.key === "f" || evento.key === "F") {
+    // Espelhado não há para onde mover a janela: ela nasce 1280x720 e precisa virar tela cheia.
+    evento.preventDefault();
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.().catch(() => {});
+  } else if (evento.key === "Escape" && document.fullscreenElement) {
     document.exitFullscreen();
   }
 });

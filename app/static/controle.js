@@ -21,8 +21,10 @@ const faixaPlaybackBt = document.getElementById("faixa-playback");
 const progressoEl = document.getElementById("player-progresso");
 const tempoEl = document.getElementById("player-tempo");
 const volumeEl = document.getElementById("player-volume");
-const seguirEl = document.getElementById("player-seguir");
 const avisoEl = document.getElementById("player-aviso");
+const modoAudioBt = document.getElementById("modo-audio");
+const modoSlidesBt = document.getElementById("modo-slides");
+const blackoutBt = document.getElementById("slide-blackout");
 
 // A liturgia é organizada por dia da semana; o índice segue Date.getDay() (0=domingo).
 const DIAS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
@@ -39,6 +41,12 @@ let buscaTimeout = null;
 // Janela de projeção aberta pelo play/"Abrir Projeção" — reutilizada e focada em vez de reaberta.
 let projecaoWin = null;
 let vigiaProjecao = null;
+
+// "audio" = o slide vira sozinho no tempo do banco, com a música tocando; "slides" = louvor ao
+// vivo, só a letra na tela e nenhum som sem o operador pedir. A escolha vale para o culto inteiro,
+// então mora no navegador em vez de voltar ao padrão a cada hino.
+const CHAVE_MODO = "louvorja:modo-projecao";
+let modoProjecao = localStorage.getItem(CHAVE_MODO) === "slides" ? "slides" : "audio";
 
 // Estado do player: as faixas da música atual, os slides e a linha do tempo em segundos.
 let faixas = { cantado: null, playback: null };
@@ -771,8 +779,9 @@ function prepararPlayer(audio) {
   playerEl.hidden = false;
   playBt.disabled = false;
   faixaAtual = disponivel(faixas.cantado) ? "cantado" : "playback";
-  // O clique no ▶ é o gesto que autoriza o autoplay: a faixa Cantado já começa a tocar.
-  trocarFaixa(faixaAtual, { autoplay: true });
+  // O clique no ▶ é o gesto que autoriza o autoplay: a faixa Cantado já começa a tocar. No modo
+  // só slides a faixa fica carregada e pausada — o som só sai se o operador pedir no ▶.
+  trocarFaixa(faixaAtual, { autoplay: modoProjecao === "audio" });
 
   mostrarAvisoDeFaixa(faltando);
 }
@@ -826,7 +835,7 @@ audioEl.addEventListener("timeupdate", () => {
   tempoEl.textContent =
     `${formatarSegundos(audioEl.currentTime)} / ${formatarSegundos(audioEl.duration)}`;
 
-  if (seguirEl.checked && linhaDoTempo.length) {
+  if (modoProjecao === "audio" && linhaDoTempo.length) {
     irParaSlide(indiceDoSlideEm(audioEl.currentTime));
   }
 });
@@ -848,6 +857,30 @@ volumeEl.addEventListener("input", () => (audioEl.volume = Number(volumeEl.value
 
 faixaCantadoBt.addEventListener("click", () => trocarFaixa("cantado"));
 faixaPlaybackBt.addEventListener("click", () => trocarFaixa("playback"));
+
+// O modo muda no meio do hino sem sustos: entrar em "só slides" cala a música onde ela está (o
+// ▶ retoma dali), e voltar para "seguir áudio" não sai tocando sozinho — o próximo timeupdate é
+// que recomeça a puxar a projeção.
+function aplicarModo(modo, { pausar = true } = {}) {
+  modoProjecao = modo === "slides" ? "slides" : "audio";
+  localStorage.setItem(CHAVE_MODO, modoProjecao);
+  modoAudioBt.classList.toggle("ativa", modoProjecao === "audio");
+  modoSlidesBt.classList.toggle("ativa", modoProjecao === "slides");
+  if (pausar && modoProjecao === "slides") audioEl.pause();
+}
+
+modoAudioBt.addEventListener("click", () => aplicarModo("audio"));
+modoSlidesBt.addEventListener("click", () => aplicarModo("slides"));
+
+async function alternarBlackout() {
+  try {
+    await api("/api/projecao/blackout", { method: "POST", body: "{}" });
+  } catch (erro) {
+    console.warn(erro.message);
+  }
+}
+
+blackoutBt.addEventListener("click", alternarBlackout);
 
 function atualizarContador(estado) {
   slideContadorEl.textContent = `${estado.total_slides ? estado.slide_index + 1 : 0}/${estado.total_slides}`;
@@ -1243,6 +1276,24 @@ diaAtual = diaHojeSlug();
 renderDiasSemana();
 carregarLiturgia();
 carregarFixos();
+aplicarModo(modoProjecao, { pausar: false });
+
+// O slide também vira pelo teclado da janela de projeção (o único caminho com a tela espelhada),
+// e aí o contador daqui ficaria para trás — e o auto-advance puxaria a projeção de volta no
+// timeupdate seguinte. O mesmo SSE que a projeção consome mantém esta tela em dia.
+function espelharEstadoDaProjecao() {
+  const stream = new EventSource("/api/projecao/stream");
+  stream.addEventListener("message", (evento) => {
+    const estado = JSON.parse(evento.data);
+    slideProjetado = estado.slide_index;
+    // Recarregar o controle no meio do culto reencontra o hino que está no telão.
+    if (estado.titulo_item) itemAtualEl.textContent = estado.titulo_item;
+    atualizarContador(estado);
+    blackoutBt.classList.toggle("ativa", Boolean(estado.blackout));
+  });
+}
+
+if (window.EventSource) espelharEstadoDaProjecao();
 
 // Sem catálogo em disco não há o que buscar nem o que projetar: a tela abre direto no download.
 api("/api/atualizacao/status")
@@ -1263,5 +1314,8 @@ document.addEventListener("keydown", (evento) => {
   } else if (evento.key === "p" || evento.key === "P") {
     evento.preventDefault();
     playBt.click();
+  } else if (evento.key === "b" || evento.key === "B") {
+    evento.preventDefault();
+    alternarBlackout();
   }
 });
