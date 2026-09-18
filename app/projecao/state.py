@@ -28,6 +28,9 @@ class EstadoProjecao(BaseModel):
     titulo_item: Optional[str] = None
     slides: list[SlideAtual] = Field(default_factory=list)
     slide_index: int = 0
+    # Tela preta sem perder o hino carregado: é como se "sai" da letra com a tela espelhada, onde
+    # minimizar a projeção jogaria a área de trabalho no telão.
+    blackout: bool = False
     atualizado_em: datetime = Field(default_factory=datetime.now)
 
     @computed_field

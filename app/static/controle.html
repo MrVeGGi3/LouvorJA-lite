@@ -64,9 +64,17 @@
   <div class="linha-superior">
     <span id="item-atual">Nenhum hino selecionado</span>
     <div class="navegacao">
+      <div class="modos" role="group" aria-label="Modo de projeção">
+        <button id="modo-audio" type="button" class="modo ativa"
+                title="O slide vira sozinho, no tempo gravado no banco">♪ Seguir áudio</button>
+        <button id="modo-slides" type="button" class="modo"
+                title="Sem áudio: só a letra, virando o slide na mão">Só slides</button>
+      </div>
       <button id="slide-anterior" type="button">◀ Anterior</button>
       <span id="slide-contador">0/0</span>
       <button id="slide-proximo" type="button">Próximo ▶</button>
+      <button id="slide-blackout" type="button" class="secundario"
+              title="Escurecer a projeção sem perder o hino (B)">⬛</button>
     </div>
   </div>
 
@@ -86,11 +94,6 @@
       <span aria-hidden="true">🔊</span>
       <input type="range" id="player-volume" min="0" max="1" step="0.01" value="1"
              aria-label="Volume">
-    </label>
-
-    <label class="seguir" title="O slide vira sozinho, no tempo gravado no banco">
-      <input type="checkbox" id="player-seguir" checked>
-      Seguir áudio
     </label>
 
     <span id="player-aviso" class="aviso" hidden></span>
