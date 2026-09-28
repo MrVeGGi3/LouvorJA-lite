@@ -55,10 +55,6 @@ let slidesAtuais = [];
 let linhaDoTempo = [];
 let slideProjetado = -1;
 
-// Só uma aba de controle comanda a projeção. Com duas, o timeupdate de cada uma puxava o telão
-// para o slide do hino *dela* e as duas brigavam pelo mesmo estado no servidor.
-let controleAtivo = true;
-
 function diaHojeSlug() {
   return DIAS[new Date().getDay()];
 }
@@ -839,7 +835,7 @@ audioEl.addEventListener("timeupdate", () => {
   tempoEl.textContent =
     `${formatarSegundos(audioEl.currentTime)} / ${formatarSegundos(audioEl.duration)}`;
 
-  if (controleAtivo && modoProjecao === "audio" && linhaDoTempo.length) {
+  if (modoProjecao === "audio" && linhaDoTempo.length) {
     irParaSlide(indiceDoSlideEm(audioEl.currentTime));
   }
 });
@@ -1299,59 +1295,6 @@ function espelharEstadoDaProjecao() {
 
 if (window.EventSource) espelharEstadoDaProjecao();
 
-// Uma aba de controle por vez, via Web Locks: quem segura o lock comanda; as outras ficam atrás do
-// aviso, na fila para assumir sozinhas quando a ativa fechar. "Usar esta aba" rouba o lock, e a aba
-// que o perde pausa o áudio e volta para a fila.
-const LOCK_CONTROLE = "louvorja:controle";
-const dialogoOutraAba = document.getElementById("dialogo-outra-aba");
-let naFila = false;
-
-function ativarControle() {
-  controleAtivo = true;
-  if (dialogoOutraAba.open) dialogoOutraAba.close();
-}
-
-function desativarControle() {
-  controleAtivo = false;
-  audioEl.pause();
-  if (!dialogoOutraAba.open) dialogoOutraAba.showModal();
-}
-
-function pedirControle(opcoes = {}) {
-  // Uma espera na fila por aba basta: um steal não cancela a que já estava lá.
-  const esperando = !opcoes.ifAvailable && !opcoes.steal;
-  if (esperando) {
-    if (naFila) return;
-    naFila = true;
-  }
-  navigator.locks
-    .request(LOCK_CONTROLE, opcoes, (lock) => {
-      if (esperando) naFila = false;
-      if (!lock) {
-        desativarControle();
-        pedirControle();
-        return;
-      }
-      ativarControle();
-      // Nunca resolve: o lock fica com esta aba até ela fechar ou outra roubá-lo.
-      return new Promise(() => {});
-    })
-    .catch((erro) => {
-      if (erro.name !== "AbortError") return;
-      desativarControle();
-      pedirControle();
-    });
-}
-
-if (navigator.locks) {
-  // O Esc não pode fechar o aviso e deixar duas abas comandando.
-  dialogoOutraAba.addEventListener("cancel", (evento) => evento.preventDefault());
-  document.getElementById("outra-aba-assumir").addEventListener("click", () => {
-    pedirControle({ steal: true });
-  });
-  pedirControle({ ifAvailable: true });
-}
-
 // Sem catálogo em disco não há o que buscar nem o que projetar: a tela abre direto no download.
 api("/api/atualizacao/status")
   .then((status) => {
@@ -1361,7 +1304,7 @@ api("/api/atualizacao/status")
 
 document.addEventListener("keydown", (evento) => {
   // Com o diálogo aberto, espaço e setas são dele — virar slide por baixo confundiria o operador.
-  if (dialogoAtualizacao.open || !controleAtivo) return;
+  if (dialogoAtualizacao.open) return;
   if (evento.target.tagName === "INPUT" || evento.target.tagName === "SELECT") return;
   if (evento.key === "ArrowRight" || evento.key === " ") {
     evento.preventDefault();

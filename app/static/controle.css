@@ -420,21 +420,6 @@ button:hover { background: #4468e8; }
   cursor: not-allowed;
 }
 
-/* --- Aviso de controle aberto em outra aba --- */
-
-#dialogo-outra-aba {
-  width: min(30rem, 92vw);
-  background: #24272e;
-  color: #eee;
-  border: 1px solid #3a3e47;
-  border-radius: 10px;
-  padding: 1.25rem;
-}
-
-#dialogo-outra-aba::backdrop { background: rgba(0, 0, 0, 0.75); }
-
-#dialogo-outra-aba h2 { margin: 0 0 0.5rem; font-size: 1.15rem; }
-
 /* A escolha da pasta na primeira execução: dois cartões clicáveis, não um formulário. */
 .opcoes {
   display: flex;
