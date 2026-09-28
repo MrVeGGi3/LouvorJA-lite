@@ -24,6 +24,12 @@ app.mount("/data", StaticFiles(directory=DATA_DIR, check_dir=False), name="data"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+@app.get("/api/ping")
+def ping():
+    # Assinatura para o launcher reconhecer uma instância já aberta na porta, em vez de subir outra.
+    return {"app": "louvorja-lite"}
+
+
 @app.get("/")
 def root():
     return RedirectResponse(url="/static/controle.html")
