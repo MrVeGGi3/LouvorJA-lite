@@ -208,3 +208,29 @@ def test_reordenar_itens():
     assert resp.status_code == 200
     novos_titulos = [i["titulo_exibicao"] for i in resp.json()["itens"]]
     assert novos_titulos == ["Item 2", "Item 1"]
+
+
+def test_ping_identifica_o_app():
+    resp = client.get("/api/ping")
+    assert resp.status_code == 200
+    assert resp.json() == {"app": "louvorja-lite"}
+
+
+def test_static_obriga_revalidar():
+    # Sem isto o navegador reaproveitava o controle.js de uma versão anterior sem perguntar.
+    resp = client.get("/static/controle.js")
+    assert resp.status_code == 200
+    assert resp.headers["cache-control"] == "no-cache"
+
+    revalidado = client.get("/static/controle.js", headers={"If-None-Match": resp.headers["etag"]})
+    assert revalidado.status_code == 304
+    assert revalidado.headers["cache-control"] == "no-cache"
+
+
+def test_paginas_servidas_direto_e_sem_cache_velho():
+    # Redirecionar para /static/*.html cairia no HTML de uma versão antiga guardado no navegador.
+    for caminho, script in (("/controle", "controle.js"), ("/projecao", "projecao.js")):
+        resp = client.get(caminho, follow_redirects=False)
+        assert resp.status_code == 200
+        assert resp.headers["cache-control"] == "no-cache"
+        assert f"/static/{script}?v=" in resp.text

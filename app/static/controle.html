@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LouvorJA Lite — Controle</title>
-<link rel="stylesheet" href="/static/controle.css">
+<!-- O ?v= só existe para escapar de caches gravados antes do Cache-Control: no-cache
+     (app/main.py); dali em diante o navegador revalida sozinho e não precisa mudar. -->
+<link rel="stylesheet" href="/static/controle.css?v=2">
 </head>
 <body>
 <header>
@@ -141,6 +143,15 @@
   </section>
 </dialog>
 
-<script src="/static/controle.js"></script>
+<!-- Só uma aba de controle comanda a projeção; as outras ficam paradas atrás deste aviso. -->
+<dialog id="dialogo-outra-aba">
+  <h2>O LouvorJA já está aberto em outra aba</h2>
+  <p class="ajuda">Use aquela aba, ou traga o controle para cá (a outra para de tocar).</p>
+  <div class="dialogo-acoes">
+    <button id="outra-aba-assumir" type="button">Usar esta aba</button>
+  </div>
+</dialog>
+
+<script src="/static/controle.js?v=2"></script>
 </body>
 </html>
