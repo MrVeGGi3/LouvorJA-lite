@@ -182,6 +182,31 @@ Os três tropeços mais comuns:
   apontando para ela), o app abre na tela de download em vez de encontrar os hinos — o que resolve
   com internet, mas não no meio do culto.
 
+## Instalando um novo release
+
+1. Baixe o `LouvorJA-Lite-x86_64.AppImage` da [página de releases](https://github.com/MrVeGGi3/LouvorJA-lite/releases)
+   e substitua o antigo **no mesmo lugar** (ao lado da pasta `data/`, no caso do pendrive). Os
+   hinos, as liturgias e os momentos fixos ficam no `data/` e não precisam ser baixados de novo.
+2. Feche o app antigo antes de abrir o novo — senão o novo sobe na porta seguinte (8001, 8002…) e
+   a janela de projeção que estava no telão continua apontando para a versão velha.
+3. Na tela de controle, aperte **Ctrl+Shift+R** uma vez, e o mesmo na janela de projeção.
+
+O passo 3 é o que mais engana: o app novo abre no mesmo endereço do antigo
+(`http://127.0.0.1:8000`), e o navegador pode reaproveitar por alguns dias o HTML/JS/CSS que já
+tinha guardado da versão anterior. O sintoma é a tela sem as novidades do release — por exemplo, a
+0.3.0 aparecendo sem o seletor "♪ Seguir áudio | Só slides". O Ctrl+Shift+R recarrega ignorando
+essa cópia guardada.
+
+Use de preferência **Google Chrome ou Chromium**: o app abre neles quando estão instalados, e só
+eles colocam a projeção sozinha no telão (ver [Limitações conhecidas](#limitações-conhecidas)). No
+Firefox tudo funciona, mas botões e campos têm outra cara e a projeção precisa ser arrastada até o
+telão. Para instalar o Chrome no Ubuntu/Pop!_OS:
+
+```bash
+wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt install /tmp/chrome.deb
+```
+
 ## Testes
 
 ```bash
