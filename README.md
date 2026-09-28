@@ -56,6 +56,12 @@ Atalhos (valem nas **duas** janelas, controle e projeção): `→`/espaço próx
 anterior, `B` escurece a tela sem perder o hino. Só na projeção: `PgDn`/`PgUp` (o que os controles
 remotos de apresentação mandam), `F` entra/sai de tela cheia. Só no controle: `P` toca/pausa.
 
+Só **uma** aba de controle comanda a projeção por vez. Uma segunda aba abre bloqueada, com o aviso
+"O LouvorJA já está aberto em outra aba" e o botão **Usar esta aba**, que traz o controle para ela
+(a outra pausa a música e fica bloqueada). Fechando a aba ativa, a que estava esperando assume
+sozinha. Do mesmo jeito, abrir o app de novo com ele já rodando não sobe um segundo servidor: só
+abre o navegador no que já está no ar.
+
 ## De onde vêm os dados
 
 O passo 2 (`--dados`) chama o `scripts/sync_data.py`, que **encontra o banco de hinos
@@ -187,15 +193,17 @@ Os três tropeços mais comuns:
 1. Baixe o `LouvorJA-Lite-x86_64.AppImage` da [página de releases](https://github.com/MrVeGGi3/LouvorJA-lite/releases)
    e substitua o antigo **no mesmo lugar** (ao lado da pasta `data/`, no caso do pendrive). Os
    hinos, as liturgias e os momentos fixos ficam no `data/` e não precisam ser baixados de novo.
-2. Feche o app antigo antes de abrir o novo — senão o novo sobe na porta seguinte (8001, 8002…) e
-   a janela de projeção que estava no telão continua apontando para a versão velha.
-3. Na tela de controle, aperte **Ctrl+Shift+R** uma vez, e o mesmo na janela de projeção.
+2. **Feche o app antigo antes de abrir o novo.** Com ele aberto, o novo não sobe: só abre o
+   navegador no que já está rodando — ou seja, na versão velha. (Versões até a 0.3.0 não se
+   reconhecem, e aí o novo sobe na porta 8001 enquanto o telão continua na velha.)
+3. Feche as abas do controle e da projeção que eram da versão antiga e deixe o app abrir as
+   dele. Se mesmo assim a tela não mostrar as novidades, aperte **Ctrl+Shift+R** no controle e na
+   projeção.
 
-O passo 3 é o que mais engana: o app novo abre no mesmo endereço do antigo
-(`http://127.0.0.1:8000`), e o navegador pode reaproveitar por alguns dias o HTML/JS/CSS que já
-tinha guardado da versão anterior. O sintoma é a tela sem as novidades do release — por exemplo, a
-0.3.0 aparecendo sem o seletor "♪ Seguir áudio | Só slides". O Ctrl+Shift+R recarrega ignorando
-essa cópia guardada.
+Até a 0.3.0 o app não dizia ao navegador para conferir os arquivos, e ele reaproveitava por dias o
+HTML/JS/CSS da versão anterior — foi assim que a 0.3.0 apareceu sem o seletor "♪ Seguir áudio |
+Só slides". Agora as páginas saem com `Cache-Control: no-cache` e o navegador pergunta ao servidor
+antes de usar o que guardou; o Ctrl+Shift+R fica só como último recurso.
 
 Use de preferência **Google Chrome ou Chromium**: o app abre neles quando estão instalados, e só
 eles colocam a projeção sozinha no telão (ver [Limitações conhecidas](#limitações-conhecidas)). No
