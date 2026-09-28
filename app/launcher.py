@@ -1,12 +1,10 @@
 """Ponto de entrada do executável: sobe o servidor local e abre o navegador na tela de controle."""
 
-import json
 import os
 import shutil
 import socket
 import threading
 import time
-import urllib.request
 import webbrowser
 
 import uvicorn
@@ -59,15 +57,6 @@ def porta_livre() -> int:
         return s.getsockname()[1]
 
 
-def instancia_aberta(porta: int) -> bool:
-    """Se já há um LouvorJA Lite respondendo nesta porta (e não um programa qualquer)."""
-    try:
-        with urllib.request.urlopen(f"http://{HOST}:{porta}/api/ping", timeout=2) as resp:
-            return json.load(resp).get("app") == "louvorja-lite"
-    except (OSError, ValueError, AttributeError):
-        return False
-
-
 def _navegador_preferido() -> "webbrowser.BaseBrowser | None":
     for nome in NAVEGADORES_CHROMIUM:
         caminho = shutil.which(nome)
@@ -91,25 +80,15 @@ def abrir_navegador(url: str) -> None:
 
 
 def main() -> None:
-    # O processo se relança ao trocar a pasta de dados (app/api/atualizacao.py). Voltar na mesma
-    # porta mantém válida a aba aberta e a janela de projeção que já está no telão.
-    preferida = int(os.environ.get("LOUVORJA_LITE_PORT") or 0)
-
-    # Abrir o app de novo não sobe um segundo servidor (na 8001, com outro estado de projeção): só
-    # leva o navegador ao que já está rodando. O relançamento acima traz a porta no ambiente e
-    # não passa por aqui.
-    if not preferida and not _livre(PORTA_PADRAO) and instancia_aberta(PORTA_PADRAO):
-        url = f"http://{HOST}:{PORTA_PADRAO}/controle"
-        print(f"O LouvorJA Lite já está aberto — {url}", flush=True)
-        abrir_navegador(url)
-        return
-
     # Sem banco não é motivo para desistir: o app abre na tela de download e busca o catálogo
     # sozinho. É o que faz o AppImage bastar por si só, sem pasta `data/` preparada antes.
     if not DB_PATH.exists():
         print(f"Primeira execução — nenhum catálogo em {DATA_DIR}.", flush=True)
         print("A tela vai abrir direto no download dos hinos.", flush=True)
 
+    # O processo se relança ao trocar a pasta de dados (app/api/atualizacao.py). Voltar na mesma
+    # porta mantém válida a aba aberta e a janela de projeção que já está no telão.
+    preferida = int(os.environ.get("LOUVORJA_LITE_PORT") or 0)
     porta = preferida if preferida and _livre(preferida) else porta_livre()
     os.environ["LOUVORJA_LITE_PORT"] = str(porta)
     url = f"http://{HOST}:{porta}/controle"

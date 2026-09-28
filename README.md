@@ -56,12 +56,6 @@ Atalhos (valem nas **duas** janelas, controle e projeção): `→`/espaço próx
 anterior, `B` escurece a tela sem perder o hino. Só na projeção: `PgDn`/`PgUp` (o que os controles
 remotos de apresentação mandam), `F` entra/sai de tela cheia. Só no controle: `P` toca/pausa.
 
-Só **uma** aba de controle comanda a projeção por vez. Uma segunda aba abre bloqueada, com o aviso
-"O LouvorJA já está aberto em outra aba" e o botão **Usar esta aba**, que traz o controle para ela
-(a outra pausa a música e fica bloqueada). Fechando a aba ativa, a que estava esperando assume
-sozinha. Do mesmo jeito, abrir o app de novo com ele já rodando não sobe um segundo servidor: só
-abre o navegador no que já está no ar.
-
 ## De onde vêm os dados
 
 O passo 2 (`--dados`) chama o `scripts/sync_data.py`, que **encontra o banco de hinos

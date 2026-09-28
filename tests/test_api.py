@@ -208,9 +208,3 @@ def test_reordenar_itens():
     assert resp.status_code == 200
     novos_titulos = [i["titulo_exibicao"] for i in resp.json()["itens"]]
     assert novos_titulos == ["Item 2", "Item 1"]
-
-
-def test_ping_identifica_o_app():
-    resp = client.get("/api/ping")
-    assert resp.status_code == 200
-    assert resp.json() == {"app": "louvorja-lite"}
